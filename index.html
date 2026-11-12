@@ -20,9 +20,17 @@
   .pad button:active, .pad button.on { background: var(--line); }
   .pad button:focus-visible { outline: 2px solid var(--go); outline-offset: 2px; }
   .pad .go { color: var(--go); } .pad .dart { color: var(--warn); }
+  .ro { display: none; flex-direction: column; gap: 4px; width: 84px; }
+  .touch .ro { display: flex; }
+  @media (orientation: landscape) { #ro-r { min-height: 124px; } }
+  .ro div { display: flex; flex-direction: column; line-height: 1.12; }
+  .ro span { font-size: 9px; letter-spacing: .07em; color: var(--dim); }
+  .ro b { font: 600 14px var(--ui); color: var(--strong); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .ro b.go { color: var(--go); } .ro b.bad { color: #e58a78; } .ro b.warn { color: var(--warn); }
+  .touch .pad { gap: 8px; } .touch .pad button { min-height: 48px; }
   .turn { display: none; text-align: center; font-size: 13px; color: var(--dim); margin: 8px 0 0; }
   @media (orientation: portrait) {
-    .touch .stage { flex-direction: column; } .touch .pad { flex-direction: row; } .touch .pad button { width: 30vw; max-width: 130px; }
+    .touch .stage { flex-direction: column; } .touch .pad { flex-direction: row; flex-wrap: wrap; justify-content: center; } .touch .ro { flex-direction: row; flex-wrap: wrap; width: 100%; gap: 4px 16px; justify-content: center; } .touch .pad button { width: 30vw; max-width: 130px; }
     .touch canvas { flex: 0 0 auto; width: 100%; } .touch .turn { display: block; }
   }
   .fs { text-align: center; margin: 8px 0 0; }
@@ -38,11 +46,13 @@
 <body>
 <div class="stage">
   <div class="pad" aria-label="Engine lever">
+    <div class="ro" id="ro-l"></div>
     <button type="button" id="b-ahead" class="go">&#9668; AHEAD</button>
     <button type="button" id="b-astern">ASTERN &#9658;</button>
   </div>
   <canvas id="c" width="1280" height="720"></canvas>
   <div class="pad" aria-label="Line">
+    <div class="ro" id="ro-r"></div>
     <button type="button" id="b-wind" class="go">WIND<br>hold</button>
     <button type="button" id="b-drop">DROP<br>hold</button>
     <button type="button" id="b-dart" class="dart">DART</button>
@@ -112,7 +122,8 @@
   tap('b-astern', () => { if (state !== 'title') boat.notch = Math.max(-2, boat.notch - 1); });
   tap('b-dart', () => { dart(); advance(); });
   const TOUCH = !!(document.documentElement && document.documentElement.classList && document.documentElement.classList.contains('touch'));
-  const US = TOUCH ? 1.5 : 1;                                 // readouts drawn half as big again on a phone
+  const US = TOUCH ? 1.5 : 1;
+  const ZOOM = TOUCH ? 1.18 : 1;                              // phones: the picture is zoomed in on the boat, the line and the bottom                                 // readouts drawn half as big again on a phone
   const fsBtn = document.getElementById('b-full'), stageEl = document.querySelector ? document.querySelector('.stage') : null;
   if (fsBtn && stageEl && document.fullscreenEnabled && stageEl.requestFullscreen) {
     fsBtn.hidden = false;
@@ -1393,13 +1404,40 @@ void main(){
     lines.forEach((l, i) => ctx.fillText(l, W / 2, 402 + i * 27));
   }
 
+  // phone readouts: plain page text beside the buttons, so nothing covers the water
+  const roL = TOUCH ? document.getElementById('ro-l') : null, roR = TOUCH ? document.getElementById('ro-r') : null;
+  let roT = -1, roLs = '', roRs = '';
+  const row = (l, v, c) => '<div><span>' + l + '</span><b' + (c ? ' class="' + c + '"' : '') + '>' + v + '</b></div>';
+  function updateReadouts() {
+    if (!roL || !roR || t - roT < 0.2) return; roT = t;
+    const sog = boat.v / KT, g = GEAR[boat.notch + 2];
+    const a = row('TIME', clockText()) + row('BAITS', baits) + row('FISH', score.count + ' / ' + score.hooked + (score.lbs ? ' &middot; ' + score.lbs + ' LB' : '')) +
+      row('LEVER', g.label, boat.notch === 0 ? 'warn' : 'go') +
+      row('OVER GROUND', Math.abs(sog).toFixed(1) + ' KT ' + (Math.abs(sog) < 0.05 ? '' : sog > 0 ? '&#9658;' : '&#9668;'), Math.abs(sog) < 0.35 ? 'go' : '') +
+      row('CURRENT', (boat.cur / KT).toFixed(1) + ' KT');
+    let b = '';
+    if (state === 'fight' && F) b = row('LINE OUT', Math.max(0, Math.round(F.line)) + ' FT') + row('PRESSURE', Math.round(Math.min(100, F.tension)) + '%', F.tension > 90 ? 'bad' : F.tension > 75 ? 'warn' : F.tension < 8 ? '' : 'go');
+    else if (state === 'fishing' && rig) {
+      const off = Math.round(rig.bot - rig.d);
+      b = row('LINE OUT', Math.round(rig.L) + ' FT') + row('DEPTH', Math.round(bottomAt(boat.wx)) + ' FT') +
+        row('OFF BOTTOM', rig.onBottom ? 'ON BOTTOM' : rig.L < 200 ? 'NEAR TOP' : off + ' FT', rig.onBottom ? 'bad' : (off >= 40 && off <= 100 && rig.L >= 200) ? 'go' : '') +
+        (rig.tangle > 0.1 ? row('LEADER WRAP', Math.round(clamp(rig.tangle, 0, 1) * 100) + '%', rig.tangle > 0.7 ? 'bad' : 'warn') : row('LINE ANGLE', Math.round(rig.angle) + '&deg;', rig.angle > 30 ? 'bad' : ''));
+    }
+    if (a !== roLs) { roLs = a; roL.innerHTML = a; }
+    if (b !== roRs) { roRs = b; roR.innerHTML = b; }
+  }
+
   function scaled(ax, ay, k, fn) { if (k === 1) { fn(); return; } ctx.save(); ctx.translate(ax, ay); ctx.scale(k, k); ctx.translate(-ax, -ay); fn(); ctx.restore(); }
 
   function draw() {
     ctx = postGL ? sceneCtx : screenCtx;
+    const zoomCtx = ZOOM > 1 ? ctx : null;
+    if (zoomCtx) { zoomCtx.save(); zoomCtx.translate(W / 2, H / 2); zoomCtx.scale(ZOOM, ZOOM); zoomCtx.translate(-732, -393); }
+    updateReadouts();
     drawScene();
     if (state === 'title') {
       drawBoat(0.3);
+      if (zoomCtx) zoomCtx.restore();
       finishScene();
       drawSwordfish(W / 2 + Math.sin(t * 0.4) * 330, 650, 150, Math.cos(t * 0.4) > 0 ? 1 : -1, 0.9, t * 4);
       centerCard('SWORDFISH DROP', [
@@ -1441,18 +1479,18 @@ void main(){
       }
     } else if (state === 'fishing') drawRig(tip);
 
+    if (zoomCtx) zoomCtx.restore();
     finishScene();
-    scaled(12, 12, US, drawStatus);
+    if (!TOUCH) drawStatus();
     drawTipView(load, tip);
-    scaled(W - 12, H - 12, US, drawHelm);
-    if (state === 'fishing') scaled(12, H - 12, US, drawRigHud);
-    if (fighting) { if (US === 1) drawFightHud(); else { ctx.save(); ctx.translate(12, H - 12); ctx.scale(1.3, 1.3); ctx.translate(-394, -(H - 12)); drawFightHud(); ctx.restore(); } }
+    if (!TOUCH) { drawHelm(); if (state === 'fishing') drawRigHud(); }
+    if (fighting) { if (!TOUCH) drawFightHud(); else { ctx.save(); ctx.translate(W / 2, H - 6); ctx.scale(1.3, 1.3); ctx.translate(-(W / 2 - 10), -(H - 12)); drawFightHud(); ctx.restore(); } }
     if (t < msgUntil && (state === 'fishing' || fighting)) {
       ctx.font = '15px ' + UI;
       const lines = []; let cur = '';
       for (const wd of msg.split(' ')) { if (cur && ctx.measureText(cur + ' ' + wd).width > (US > 1 ? 216 : 272)) { lines.push(cur); cur = wd; } else cur = cur ? cur + ' ' + wd : wd; }
       lines.push(cur);
-      ctx.save(); ctx.translate(US > 1 ? 468 : 324, 12); ctx.scale(US, US);
+      ctx.save(); ctx.translate(US > 1 ? 12 : 324, 12); ctx.scale(US, US);
       panel(0, 0, US > 1 ? 244 : 300, 14 + lines.length * 20);
       ctx.textAlign = 'left'; ctx.fillStyle = '#e8eff4'; lines.forEach((l, i) => ctx.fillText(l, 14, 22 + i * 20));
       ctx.restore();
