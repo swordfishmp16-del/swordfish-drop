@@ -28,6 +28,12 @@
   .ro b { font: 600 14px var(--ui); color: var(--strong); font-variant-numeric: tabular-nums; white-space: nowrap; }
   .ro b.go { color: var(--go); } .ro b.bad { color: #e58a78; } .ro b.warn { color: var(--warn); }
   .touch .pad { gap: 8px; } .touch .pad button { min-height: 48px; }
+  .stage { position: relative; }
+  .shop { position: absolute; top: 6px; left: 57%; transform: translateX(-50%); font: 600 10.5px var(--ui); letter-spacing: .08em; color: var(--fg); text-decoration: none;
+          background: rgba(6,14,22,.5); border: 1px solid var(--line); border-radius: 999px; padding: 4px 11px; opacity: .78; white-space: nowrap; }
+  .touch .shop { left: 110px; transform: none; }
+  @media (orientation: portrait) { .touch .shop { position: static; align-self: center; } }
+  .shop:hover, .shop:focus-visible { opacity: 1; color: var(--strong); }
   .turn { display: none; text-align: center; font-size: 13px; color: var(--dim); margin: 8px 0 0; }
   @media (orientation: portrait) {
     .touch .stage { flex-direction: column; } .touch .pad { flex-direction: row; flex-wrap: wrap; justify-content: center; } .touch .ro { flex-direction: row; flex-wrap: wrap; width: 100%; gap: 4px 16px; justify-content: center; } .touch .pad button { width: 30vw; max-width: 130px; }
@@ -45,6 +51,7 @@
 </head>
 <body>
 <div class="stage">
+  <a class="shop" href="https://www.salttidegear.com" target="_blank" rel="noopener">SALTTIDEGEAR.COM &#8599;</a>
   <div class="pad" aria-label="Engine lever">
     <div class="ro" id="ro-l"></div>
     <button type="button" id="b-ahead" class="go">&#9668; AHEAD</button>
@@ -836,6 +843,15 @@ void main(){
     g = ctx.createLinearGradient(sunX - 150, 0, sunX + 150, 0);     // the sun's path on the water
     g.addColorStop(0, 'rgba(255,246,220,0)'); g.addColorStop(0.5, 'rgba(255,246,220,0.22)'); g.addColorStop(1, 'rgba(255,246,220,0)');
     ctx.globalCompositeOperation = 'screen'; ctx.fillStyle = g; ctx.fillRect(sunX - 150, yH, 300, 80);
+    for (let i = 0; i < 70; i++) {
+      const u = Math.sin(i * 91.7) * 0.5 + Math.sin(i * 37.3) * 0.5;                  // bunched toward the middle of the sun's path
+      const d = ((i * 0.618) % 1), gy = yH + 3 + d * d * 66;                             // more of them far away, where the waves stack up
+      const gx = sunX + u * (60 + d * 190) + Math.sin(t * 0.6 + i) * 3;
+      const tw = Math.sin(t * (3 + (i % 5)) + i * 2.4);
+      if (tw < 0.35) continue;
+      ctx.fillStyle = 'rgba(255,250,232,' + ((tw - 0.35) * 0.95 * (1 - Math.abs(u) * 0.6)) + ')';
+      ctx.beginPath(); ctx.ellipse(gx, gy, 1.2 + d * 3.2, 0.5 + d * 0.9, 0, 0, 7); ctx.fill();
+    }
     ctx.restore();
   }
 
@@ -1048,12 +1064,28 @@ void main(){
     ctx.drawImage(boatShade, 60, 350, 760, 380);
     const bp = ctx.createLinearGradient(0, 378, 0, 400); bp.addColorStop(0, 'rgba(24,46,72,0.95)'); bp.addColorStop(1, 'rgba(8,22,40,0.9)');
     ctx.fillStyle = bp; ctx.beginPath(); ctx.moveTo(141, 378); ctx.quadraticCurveTo(330, 402, 618, 394); ctx.lineTo(620, 378); ctx.closePath(); ctx.fill();
-    for (const ex of [626, 642]) {
-      ctx.fillStyle = 'rgba(20,24,30,0.94)'; ctx.fillRect(ex, 374, 10, 23);
-      ctx.beginPath(); ctx.ellipse(ex + 6, 400, 12, 4.2, 0, 0, 7); ctx.fill();
-      ctx.beginPath(); ctx.moveTo(ex + 1, 402); ctx.lineTo(ex + 10, 402); ctx.lineTo(ex + 6, 416); ctx.closePath(); ctx.fill();
-      const spin = Math.abs(Math.sin(t * (6 + boat.rpm / 90)));                                          // the prop turning
-      ctx.fillStyle = 'rgba(160,170,180,0.85)'; ctx.beginPath(); ctx.ellipse(ex + 19, 400, 1.8, 2.5 + 6 * spin, 0, 0, 7); ctx.fill();
+    for (const ex of [622, 640]) {
+      const far = ex === 622 ? 0.8 : 1;                           // the far engine is a little dimmer through the water
+      ctx.save(); ctx.translate(ex, 0); ctx.globalAlpha = 0.96 * far;
+      let lg = ctx.createLinearGradient(0, 0, 12, 0); lg.addColorStop(0, '#0d1116'); lg.addColorStop(0.45, '#39424c'); lg.addColorStop(1, '#10141a');
+      ctx.fillStyle = lg;                                         // the leg, narrowing as it goes down
+      ctx.beginPath(); ctx.moveTo(-1, 372); ctx.lineTo(12, 372); ctx.lineTo(10, 398); ctx.lineTo(2, 398); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#1a2027';                                  // anti-ventilation plate, reaching back over the prop
+      ctx.beginPath(); ctx.moveTo(-3, 391.5); ctx.lineTo(25, 391.5); ctx.lineTo(27, 393.2); ctx.lineTo(-3, 394); ctx.closePath(); ctx.fill();
+      lg = ctx.createLinearGradient(0, 396, 0, 407); lg.addColorStop(0, '#48525d'); lg.addColorStop(0.35, '#232a32'); lg.addColorStop(1, '#090c10');
+      ctx.fillStyle = lg;                                         // gearcase: a torpedo with its nose toward the bow
+      ctx.beginPath(); ctx.moveTo(-9, 401.5); ctx.bezierCurveTo(-5, 396.5, 8, 396, 16, 397.5); ctx.lineTo(16, 405.5); ctx.bezierCurveTo(8, 407, -5, 406.5, -9, 401.5); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#12161b';                                  // skeg, swept back
+      ctx.beginPath(); ctx.moveTo(1, 405.5); ctx.lineTo(12, 406); ctx.lineTo(13, 418); ctx.quadraticCurveTo(8, 416, 1, 405.5); ctx.closePath(); ctx.fill();
+      const spin = t * (5 + boat.rpm / 70);                       // the prop: hub, and blades that blur into a disc as the revs rise
+      const blur = clamp((boat.rpm - 700) / 1500, 0, 1);
+      ctx.fillStyle = '#2b323a'; ctx.beginPath(); ctx.ellipse(18.5, 401.5, 3, 3.6, 0, 0, 7); ctx.fill();
+      ctx.fillStyle = 'rgba(150,160,170,' + (0.75 - blur * 0.5) + ')';
+      for (let b = 0; b < 3; b++) { const h = Math.sin(spin + b * 2.094) * 8.5; ctx.beginPath(); ctx.ellipse(20, 401.5 + h * 0.55, 1.5, Math.abs(h) * 0.5 + 0.8, 0, 0, 7); ctx.fill(); }
+      if (blur > 0.05) { ctx.fillStyle = 'rgba(190,205,215,' + (0.16 * blur) + ')'; ctx.beginPath(); ctx.ellipse(20.5, 401.5, 2.4, 9.5, 0, 0, 7); ctx.fill(); }
+      ctx.strokeStyle = 'rgba(150,200,225,0.22)'; ctx.lineWidth = 0.7;   // daylight from above catching the top edges
+      ctx.beginPath(); ctx.moveTo(-7, 399.4); ctx.bezierCurveTo(-3, 396.8, 8, 396.3, 15, 397.6); ctx.stroke(); ctx.lineWidth = 1;
+      ctx.restore();
     }
     // the photo, with a little glow off the white gelcoat in the sun
     if (!boatGlow) {                                          // glow baked once, so each frame is a plain copy
@@ -1498,7 +1530,7 @@ void main(){
       const lines = []; let cur = '';
       for (const wd of msg.split(' ')) { if (cur && ctx.measureText(cur + ' ' + wd).width > (US > 1 ? 216 : 272)) { lines.push(cur); cur = wd; } else cur = cur ? cur + ' ' + wd : wd; }
       lines.push(cur);
-      ctx.save(); ctx.translate(US > 1 ? 12 : 324, 12); ctx.scale(US, US);
+      ctx.save(); ctx.translate(US > 1 ? 12 : 324, US > 1 ? 50 : 12); ctx.scale(US, US);
       panel(0, 0, US > 1 ? 244 : 300, 14 + lines.length * 20);
       ctx.textAlign = 'left'; ctx.fillStyle = '#e8eff4'; lines.forEach((l, i) => ctx.fillText(l, 14, 22 + i * 20));
       ctx.restore();
