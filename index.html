@@ -1058,6 +1058,9 @@ void main(){
     if (!boatGlow) {                                          // glow baked once, so each frame is a plain copy
       boatGlow = document.createElement('canvas'); boatGlow.width = boatPhoto.width + 40; boatGlow.height = boatPhoto.height + 40;
       const bgx = boatGlow.getContext('2d'); bgx.shadowColor = 'rgba(255,255,250,0.32)'; bgx.shadowBlur = 9; bgx.drawImage(boatPhoto, 20, 20);
+      bgx.shadowColor = 'transparent'; bgx.shadowBlur = 0;   // the owner's store, lettered under her name
+      bgx.font = 'italic 700 11.5px Georgia, "Times New Roman", serif'; bgx.textAlign = 'center'; bgx.textBaseline = 'middle';
+      bgx.fillStyle = 'rgba(20,48,77,0.86)'; bgx.fillText('SALTTIDEGEAR.COM', 332, 375);
     }
     ctx.drawImage(boatGlow, -20, -20);
     // light off the moving water playing on the hull side
