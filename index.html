@@ -14,7 +14,8 @@
   .grid { display: grid; grid-template-columns: auto auto; gap: 3px 14px; }
   #surf { display: none !important; left: 0; right: 0; height: 2px; margin-top: -1px; background: linear-gradient(rgba(255,255,255,.55), rgba(160,225,255,.15)); }
   #b-full { position: fixed; top: 10px; left: calc(50% + 8px); font: 600 10.5px var(--ui); letter-spacing: .08em; color: var(--fg); background: rgba(6,14,22,.5); border: 1px solid var(--line); border-radius: 999px; padding: 4px 11px; opacity: .8; cursor: pointer; }
-  #b-full:hover, #b-view:hover { opacity: 1; color: var(--strong); }
+  #b-full:hover, #b-view:hover, #b-snd:hover { opacity: 1; color: var(--strong); }
+  #b-snd { position: fixed; top: 10px; right: calc(50% + 158px); font: 600 10.5px var(--ui); letter-spacing: .08em; color: var(--fg); background: rgba(6,14,22,.5); border: 1px solid var(--line); border-radius: 999px; padding: 4px 11px; opacity: .8; cursor: pointer; white-space: nowrap; }
   #b-view { position: fixed; top: 10px; left: calc(50% + 104px); font: 600 10.5px var(--ui); letter-spacing: .08em; color: var(--fg); background: rgba(6,14,22,.5); border: 1px solid var(--line); border-radius: 999px; padding: 4px 11px; opacity: .8; cursor: pointer; white-space: nowrap; }
   .grid span { font-size: 10px; letter-spacing: .08em; color: var(--dim); align-self: center; }
   .grid b { font: 600 15px var(--ui); color: var(--strong); font-variant-numeric: tabular-nums; white-space: nowrap; }
@@ -56,15 +57,15 @@
   .touch #flash { font-size: 34px; top: 38%; }
   .touch #card { width: min(560px, calc(100vw - 220px)); padding: 12px 16px; } .touch #card h1 { font-size: 26px; margin-bottom: 6px; } .touch #card p { font-size: 13px; margin: 2px 0; line-height: 1.35; }
   .touch #card.low { width: min(420px, calc(100vw - 232px)); bottom: 8px; }
-  .touch .shop, .touch #b-full, .touch #b-view { top: 6px; padding: 5px 9px; font-size: 10px; }
+  .touch .shop, .touch #b-full, .touch #b-view, .touch #b-snd { top: 6px; padding: 5px 9px; font-size: 10px; }
   @media (orientation: portrait) {
     .touch #msg { bottom: 176px; max-width: calc(100vw - 24px); } .touch #card { width: calc(100vw - 32px); } .touch #card.low { bottom: 176px; width: calc(100vw - 32px); }
-    .touch .shop { left: 12px; transform: none; } .touch #b-full { left: 150px; } .touch #b-view { left: 244px; }
+    .touch .shop { left: 12px; transform: none; } .touch #b-full { left: 150px; } .touch #b-view { left: 244px; } .touch #b-snd { right: 12px; top: 250px; }
     .touch #status { top: 38px; } .touch #rigp { top: 122px; } .touch #fight { top: 122px; }
   }
   /* a tap is only a tap: no text selection, so the phone's browser does not offer to search the tapped word */
   html, body, .hud, .pad button, #card, #card * { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; }
-  #card, .pad button, #b-full, #b-view { touch-action: manipulation; }
+  #card, .pad button, #b-full, #b-view, #b-snd { touch-action: manipulation; }
   [hidden] { display: none !important; }
 </style>
 <script type="importmap">{"imports":{"three":"./three.module.min.js"}}</script>
@@ -77,6 +78,7 @@
 <div class="hud" id="surf"></div>
 <button type="button" id="b-full" hidden>FULL SCREEN</button>
 <button type="button" id="b-view">VIEW: WHOLE</button>
+<button type="button" id="b-snd">SOUND ON</button>
 <div class="hud box" id="msg" hidden></div>
 <div class="hud" id="flash" hidden></div>
 <div class="hud inset" id="in-tip"><i>ROD TIP</i></div>
@@ -466,6 +468,7 @@ const camera = new THREE.PerspectiveCamera(42, innerWidth / innerHeight, 0.1, 60
 const tipCam = new THREE.PerspectiveCamera(26, 1.5, 0.05, 6000);
 const deepCam = new THREE.PerspectiveCamera(48, 1.5, 0.1, 3000);
 const sunDir = new THREE.Vector3(-0.45, 0.62, -0.64).normalize();
+const warmU = { value: 0 };                                 /* 0 = midday light, 1 = low sun */
 
 // ---------- waves: one set of numbers shared by the water shader and the boat ----------
 const WAVES = [[1.0, 0.25, 0.40, 58], [0.75, 0.66, 0.22, 36], [0.95, -0.30, 0.07, 21], [0.35, 0.94, 0.0, 9], [0.85, 0.52, 0.0, 5]]   // a long slow swell: no short fast waves
@@ -474,14 +477,14 @@ let waterZ = 0;                                          // how far the boat has
 function waveH(x, z, tt) { let h = 0; z += waterZ; for (const w of WAVES) h += w.a * Math.sin(w.k * (w.dx * x + w.dz * z) - w.om * tt); return h; }
 
 const SKY_GLSL = `
-  uniform vec3 uSun;
+  uniform vec3 uSun; uniform float uWarm;
   float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
   float noise(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3. - 2. * f);
     return mix(mix(hash(i), hash(i + vec2(1, 0)), f.x), mix(hash(i + vec2(0, 1)), hash(i + vec2(1, 1)), f.x), f.y); }
   float fbm(vec2 p) { float a = .5, s = 0.; for (int i = 0; i < 5; i++) { s += a * noise(p); p = p * 2.03 + 7.1; a *= .5; } return s; }
   vec3 skyBase(vec3 d) {
     float y = max(d.y, 0.);
-    vec3 c = mix(vec3(.72, .84, .95), vec3(.10, .30, .70), pow(y, .42));
+    vec3 c = mix(mix(vec3(.72, .84, .95), vec3(.99, .78, .58), uWarm * .8), mix(vec3(.10, .30, .70), vec3(.17, .27, .55), uWarm), pow(y, .42));
     float s = max(dot(d, uSun), 0.);
     c += vec3(1., .82, .55) * pow(s, 9.) * .30 + vec3(1., .95, .85) * pow(s, 90.) * .7;
     return c;
@@ -499,7 +502,7 @@ const SKY_GLSL = `
 
 // ---------- sky ----------
 const skyMat = new THREE.ShaderMaterial({
-  side: THREE.BackSide, depthWrite: false, uniforms: { uSun: { value: sunDir }, uUnder: { value: 0 }, uDeep: { value: new THREE.Color(0x05294d) } },
+  side: THREE.BackSide, depthWrite: false, uniforms: { uSun: { value: sunDir }, uWarm: warmU, uUnder: { value: 0 }, uDeep: { value: new THREE.Color(0x05294d) } },
   vertexShader: `varying vec3 vD; void main() { vD = normalize(position); gl_Position = projectionMatrix * viewMatrix * vec4(position + cameraPosition, 1.); gl_Position.z = gl_Position.w * .99995; }`,
   fragmentShader: SKY_GLSL + `varying vec3 vD; uniform float uUnder; uniform vec3 uDeep;
     void main() { vec3 d = normalize(vD); vec3 c = skyCol(d, 1.);
@@ -517,7 +520,7 @@ const sky = new THREE.Mesh(new THREE.SphereGeometry(2500, 48, 24), skyMat); sky.
 // ---------- water ----------
 const waterMat = new THREE.ShaderMaterial({
   side: THREE.DoubleSide,
-  uniforms: { uT: { value: 0 }, uSun: { value: sunDir }, uW: { value: WAVES.map(w => new THREE.Vector4(w.dx * w.k, w.dz * w.k, w.a, w.om)) },
+  uniforms: { uT: { value: 0 }, uSun: { value: sunDir }, uWarm: warmU, uW: { value: WAVES.map(w => new THREE.Vector4(w.dx * w.k, w.dz * w.k, w.a, w.om)) },
               uOff: { value: 0 }, uKt: { value: 0 }, uCutX: { value: 1e9 }, uDeep: { value: new THREE.Color(0x05294d) } },
   vertexShader: `
     uniform float uT, uOff; uniform vec4 uW[5];
@@ -899,13 +902,19 @@ const rigPos = new THREE.Vector3(), fishPos = new THREE.Vector3(1.5, -3, -8), fi
 let fishYawS = Math.PI, fishPitchS = 0;
 const RIG_X = 1.47, RIG_Z = -5.4;
 const FISH_K = 0.62, BAIT_DZ = -2.53;       /* the bait trails this far down-current of the weight */                                        // fish are drawn a little under life size so they sit right in the squeezed water
-function setAir() { skyMat.uniforms.uUnder.value = 0; scene.fog.color.set(0xb9d2e8); scene.fog.density = 0.0011; hemi.intensity = 1.25; hemi.color.set(0xbfd8ff); hemi.groundColor.set(0x12324a); sun.intensity = 3.2; sun.color.set(0xfff2dc); }
+function setAir() { skyMat.uniforms.uUnder.value = 0; scene.fog.color.set(0xb9d2e8); scene.fog.density = 0.0011; hemi.intensity = 1.25; hemi.color.set(0xbfd8ff); hemi.groundColor.set(0x12324a); sun.intensity = dayInt; sun.color.copy(dayCol); }
+let dayInt = 3.2; const dayCol = new THREE.Color(0xfff2dc);
 function setCut() {                                         // the cut through the sea: bright under the surface, dark toward the bottom
   skyMat.uniforms.uUnder.value = 2; scene.fog.color.setRGB(0.006, 0.075, 0.30); scene.fog.density = 0.016;
   hemi.intensity = 1.7; hemi.color.set(0x8fc4ff); hemi.groundColor.set(0x0a2f66); sun.intensity = 1.5; sun.color.set(0xbfe8ff);
 }
 function render() {
   const tt = t;
+  { /* the sun climbs out of the east behind the boat, passes overhead about noon, and is well down in the west by five */
+    const dayU = state === 'title' ? 0.22 : clamp((clock - DAY_START) / (DAY_END - DAY_START), 0, 1), a = (9 + 141 * dayU) * Math.PI / 180;
+    sunDir.set(-Math.cos(a), Math.sin(a), -0.32).normalize(); sun.position.copy(sunDir).multiplyScalar(100);
+    const low = 1 - clamp((sunDir.y - 0.14) / 0.42, 0, 1); warmU.value = low;
+    dayInt = 3.2 * (0.62 + 0.38 * clamp(sunDir.y * 1.5, 0, 1)); dayCol.setRGB(1, 0.95 - 0.17 * low, 0.86 - 0.34 * low); }
   waterZ += boat.stw / KT * 0.514 * lastDt;
   waterMat.uniforms.uT.value = tt; waterMat.uniforms.uOff.value = waterZ; waterMat.uniforms.uKt.value = boat.stw / KT; fishU.uSwim.value = tt * 5;
   // the boat rides the waves the shader draws
@@ -1030,12 +1039,63 @@ function render() {
   updateHud();
 }
 
+/* Sound is made here from scratch (no sound files): engines, water on the hull, the electric reel, free spool, the drag, a splash, a thump on deck. */
+let AC = null, snd = null, muted = false;
+function startSound() {
+  if (AC || muted) return;
+  try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { AC = null; return; }
+  const master = AC.createGain(); master.gain.value = 0.7; master.connect(AC.destination);
+  const nb = AC.createBuffer(1, AC.sampleRate * 2, AC.sampleRate), d = nb.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+  const noise = () => { const n = AC.createBufferSource(); n.buffer = nb; n.loop = true; n.start(); return n; };
+  const osc = (type, f) => { const o = AC.createOscillator(); o.type = type; o.frequency.value = f; o.start(); return o; };
+  const chain = (src, type, f, q, g) => { const fl = AC.createBiquadFilter(); fl.type = type; fl.frequency.value = f; fl.Q.value = q; const gn = AC.createGain(); gn.gain.value = g; src.connect(fl); fl.connect(gn); gn.connect(master); return { src, fl, gn }; };
+  snd = { master, nb,
+    water: chain(noise(), 'bandpass', 420, 0.6, 0.04), lap: chain(noise(), 'lowpass', 900, 0.5, 0),
+    eng: chain(osc('sawtooth', 22), 'lowpass', 150, 1, 0), eng2: chain(osc('square', 11), 'lowpass', 100, 1, 0), exh: chain(noise(), 'lowpass', 260, 0.8, 0),
+    reel: chain(osc('sawtooth', 320), 'bandpass', 900, 2, 0), spool: chain(noise(), 'highpass', 2600, 0.7, 0), drag: chain(osc('square', 38), 'highpass', 1800, 0.7, 0),
+    lastMode: '', lastState: '' };
+}
+function burst(f0, f1, dur, vol) {                          /* a wash of noise that falls in pitch: a splash */
+  const n = AC.createBufferSource(); n.buffer = snd.nb; const fl = AC.createBiquadFilter(); fl.type = 'lowpass'; const g = AC.createGain(), now = AC.currentTime;
+  fl.frequency.setValueAtTime(f0, now); fl.frequency.exponentialRampToValueAtTime(f1, now + dur); g.gain.setValueAtTime(vol, now); g.gain.exponentialRampToValueAtTime(0.001, now + dur);
+  n.connect(fl); fl.connect(g); g.connect(snd.master); n.start(now); n.stop(now + dur + 0.05);
+}
+function thump() {                                          /* a fish coming over the gunwale onto the deck */
+  const o = AC.createOscillator(), g = AC.createGain(), now = AC.currentTime; o.type = 'sine';
+  o.frequency.setValueAtTime(120, now); o.frequency.exponentialRampToValueAtTime(45, now + 0.3); g.gain.setValueAtTime(0.5, now); g.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+  o.connect(g); g.connect(snd.master); o.start(now); o.stop(now + 0.45);
+}
+function soundTick() {
+  if (!snd) return;
+  const now = AC.currentTime, set = (p, v, tc) => p.setTargetAtTime(v, now, tc || 0.08);
+  const playing = state === 'fishing' || state === 'fight' || state === 'result', rpm = boat.rpm, f = rpm / 60 * 2;
+  set(snd.eng.src.frequency, f, 0.1); set(snd.eng2.src.frequency, f * 0.5, 0.1);
+  const eg = playing ? 0.045 + (rpm - 650) / 2000 * 0.07 : 0.025;
+  set(snd.eng.gn.gain, eg); set(snd.eng2.gn.gain, eg * 0.8); set(snd.exh.gn.gain, eg * 0.9); set(snd.exh.fl.frequency, 200 + rpm * 0.12);
+  set(snd.water.gn.gain, 0.03 + 0.015 * Math.sin(t * 0.7) + Math.abs(boat.stw / KT) * 0.012, 0.3);
+  set(snd.lap.gn.gain, Math.max(0, Math.sin(t * 1.1) * Math.sin(t * 0.37)) * 0.05, 0.15);
+  const winding = kWind() && (state === 'fishing' ? !!rig && rig.L > 10.5 && rig.rigT <= 0 : state === 'fight');
+  set(snd.reel.gn.gain, winding ? 0.05 : 0, 0.05);
+  set(snd.reel.src.frequency, state === 'fight' && F ? 250 + (100 - Math.min(100, F.tension)) * 1.2 : 330, 0.1);     /* the motor labours under load */
+  const dropping = state === 'fishing' && kDrop() && !!rig && rig.rigT <= 0 && !rig.onBottom;
+  set(snd.spool.gn.gain, dropping ? 0.035 : 0, 0.05);
+  const running = state === 'fight' && !!F && F.mode === 'run';
+  set(snd.drag.gn.gain, running ? 0.045 : 0, 0.04); if (running) set(snd.drag.src.frequency, 30 + F.strength * 22, 0.1);
+  const mode = state === 'fight' && F ? F.mode : '';
+  if (mode !== snd.lastMode) { if (mode === 'jump') burst(3200, 350, 0.9, 0.35); snd.lastMode = mode; }
+  if (state !== snd.lastState) { if (state === 'result' && result && result.landed) thump(); snd.lastState = state; }
+}
+function setMuted(m) { muted = m; $('b-snd').textContent = m ? 'SOUND OFF' : 'SOUND ON'; if (!m) startSound(); if (snd) snd.master.gain.setTargetAtTime(m ? 0 : 0.7, AC.currentTime, 0.05); if (AC && !m && AC.state === 'suspended') AC.resume(); }
+$('b-snd').addEventListener('click', e => { e.stopPropagation(); setMuted(!muted); });
+for (const ev of ['pointerdown', 'keydown']) addEventListener(ev, () => { startSound(); if (AC && AC.state === 'suspended' && !muted) AC.resume(); });
+document.addEventListener('visibilitychange', () => { if (AC) { if (document.hidden) AC.suspend(); else if (!muted) AC.resume(); } });
+
 let last = performance.now(), lastDt = 0.016;
 function frame(now) {
   lastDt = Math.min(0.05, Math.max(0.001, (now - last) / 1000)); last = now;
   const speed = +(q.get('speed') || 1);
   for (let i = 0; i < speed; i++) update(lastDt);
-  render();
+  render(); soundTick();
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
