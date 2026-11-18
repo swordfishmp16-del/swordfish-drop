@@ -14,7 +14,8 @@
   .grid { display: grid; grid-template-columns: auto auto; gap: 3px 14px; }
   #surf { left: 0; right: 0; height: 2px; margin-top: -1px; background: linear-gradient(rgba(255,255,255,.55), rgba(160,225,255,.15)); }
   #b-full { position: fixed; top: 10px; left: calc(50% + 8px); font: 600 10.5px var(--ui); letter-spacing: .08em; color: var(--fg); background: rgba(6,14,22,.5); border: 1px solid var(--line); border-radius: 999px; padding: 4px 11px; opacity: .8; cursor: pointer; }
-  #b-full:hover { opacity: 1; color: var(--strong); }
+  #b-full:hover, #b-view:hover { opacity: 1; color: var(--strong); }
+  #b-view { position: fixed; top: 10px; left: calc(50% + 104px); font: 600 10.5px var(--ui); letter-spacing: .08em; color: var(--fg); background: rgba(6,14,22,.5); border: 1px solid var(--line); border-radius: 999px; padding: 4px 11px; opacity: .8; cursor: pointer; white-space: nowrap; }
   .grid span { font-size: 10px; letter-spacing: .08em; color: var(--dim); align-self: center; }
   .grid b { font: 600 15px var(--ui); color: var(--strong); font-variant-numeric: tabular-nums; white-space: nowrap; }
   b.go { color: var(--go) !important; } b.bad { color: var(--bad) !important; } b.warn { color: var(--warn) !important; }
@@ -22,8 +23,9 @@
   #flash { left: 0; right: 0; top: 30%; text-align: center; font: 300 52px var(--ui); color: #fff; text-shadow: 0 2px 18px rgba(0,0,0,.6); }
   .inset { border: 1px solid rgba(200,225,240,.55); border-radius: 6px; box-shadow: 0 0 0 1px rgba(0,0,0,.4); }
   .inset i { position: absolute; left: 8px; top: 6px; font: 600 10px var(--ui); letter-spacing: .1em; font-style: normal; color: rgba(255,255,255,.9); text-shadow: 0 1px 3px rgba(0,0,0,.8); }
-  #fight { left: 50%; bottom: 14px; transform: translateX(-50%); width: min(460px, 60vw); text-align: center; }
-  #fight .p { font: 600 17px var(--ui); letter-spacing: .03em; margin-bottom: 6px; }
+  #fight { left: 50%; top: 38px; transform: translateX(-50%); width: min(400px, 46vw); text-align: center; padding: 6px 12px; }
+  .fighting #msg { top: 142px; }
+  #fight .p { font: 600 15px var(--ui); letter-spacing: .03em; margin-bottom: 4px; }
   #fight .row { display: flex; justify-content: space-between; font-size: 11px; letter-spacing: .07em; color: var(--dim); margin-bottom: 4px; }
   #fight .row b { color: var(--strong); font-size: 13px; }
   .bar { height: 14px; background: rgba(255,255,255,.09); border: 1px solid rgba(200,220,235,.4); position: relative; }
@@ -44,7 +46,7 @@
                 width: 88px; min-height: 50px; touch-action: none; user-select: none; -webkit-user-select: none; }
   .pad button.on, .pad button:active { background: rgba(60,90,115,.85); } .pad .go { color: var(--go); } .pad .dart { color: var(--warn); }
   #keys { left: 12px; bottom: 10px; font-size: 11px; letter-spacing: .05em; color: rgba(255,255,255,.7); text-shadow: 0 1px 3px rgba(0,0,0,.7); }
-  .touch #keys { display: none; } .touch #fight { bottom: 8px; width: min(360px, 44vw); } .touch .grid b { font-size: 13px; }
+  .touch #keys { display: none; } .touch #fight { width: min(300px, 40vw); padding: 4px 10px; } .touch #fight small { display: none; } .touch.fighting #msg { top: 112px; } .touch .grid b { font-size: 13px; }
   [hidden] { display: none !important; }
 </style>
 <script type="importmap">{"imports":{"three":"./three.module.min.js"}}</script>
@@ -56,6 +58,7 @@
 <div class="hud box grid" id="helm" hidden></div>
 <div class="hud" id="surf"></div>
 <button type="button" id="b-full" hidden>FULL SCREEN</button>
+<button type="button" id="b-view">VIEW: WHOLE</button>
 <div class="hud box" id="msg" hidden></div>
 <div class="hud" id="flash" hidden></div>
 <div class="hud inset" id="in-tip"><i>ROD TIP</i></div>
@@ -65,7 +68,7 @@
   <div class="bar"><div id="f-bar"></div></div><small id="f-s"></small>
 </div>
 <div class="hud box" id="card"></div>
-<div class="hud" id="keys">LEFT / RIGHT = ENGINE LEVER &middot; DOWN = DROP &middot; UP OR SPACE = WIND &middot; F = DART</div>
+<div class="hud" id="keys">LEFT / RIGHT = ENGINE LEVER &middot; DOWN = DROP &middot; UP OR SPACE = WIND &middot; F = DART &middot; V = BAIT VIEW &middot; WHEEL = ZOOM, DRAG = PAN</div>
 <div class="pad" id="pad-l"><button type="button" id="b-ahead" class="go">AHEAD</button><button type="button" id="b-astern">ASTERN</button></div>
 <div class="pad" id="pad-r"><button type="button" id="b-wind" class="go">WIND<br>hold</button><button type="button" id="b-drop">DROP<br>hold</button><button type="button" id="b-dart" class="dart">DART</button></div>
 <script type="module">
@@ -588,6 +591,14 @@ function updateFloor() {                                   // the same bottom th
   p.needsUpdate = true; floorGeo.computeVertexNormals();
 }
 floor.position.set(-FLOOR_SIZE / 2 + 6, 0, -3.4);
+const shadeMat = new THREE.ShaderMaterial({
+  transparent: true, depthTest: false, depthWrite: false, uniforms: { uLamp: { value: new THREE.Vector2(0, -8) }, uBlink: { value: 0 }, uR: { value: 2 } },
+  vertexShader: 'varying vec3 vP; void main() { vec4 wp = modelMatrix * vec4(position, 1.); vP = wp.xyz; gl_Position = projectionMatrix * viewMatrix * wp; }',
+  fragmentShader: 'uniform vec2 uLamp; uniform float uBlink, uR; varying vec3 vP;' +
+    ' void main() { float dark = (1. - smoothstep(-7.5, -0.6, vP.y)) * .86; vec2 d = vP.zy - uLamp; float glow = uBlink * exp(-dot(d, d) / (uR * uR));' +
+    ' gl_FragColor = vec4(vec3(.0, .008, .022) + vec3(.10, .32, .26) * glow * .5, dark * (1. - .93 * glow)); }',
+});
+const shade = new THREE.Mesh(new THREE.PlaneGeometry(120, 16), shadeMat); shade.rotation.y = Math.PI / 2; shade.position.set(2.3, -8, -3.4); shade.renderOrder = 50; shade.visible = false; shade.frustumCulled = false; scene.add(shade);
 // drifting marine snow around the deep camera
 const SNOW_N = 500, snowGeo = new THREE.BufferGeometry(), snowP = new Float32Array(SNOW_N * 3);
 for (let i = 0; i < SNOW_N; i++) { snowP[i * 3] = -6 + Math.random() * 8; snowP[i * 3 + 1] = -Math.random() * 11; snowP[i * 3 + 2] = -3.4 + (Math.random() - 0.5) * 34; }
@@ -599,7 +610,7 @@ const loader = new GLTFLoader();
 const load = n => new Promise((res, rej) => loader.load('./' + n + '.glb', g => res(g.scene), undefined, rej));
 const boatG = new THREE.Group(); scene.add(boatG);
 const BAITS = ['squid', 'belly'];
-const [boatM, fishM, ...baitM] = await Promise.all([load('boat'), load('swordfish'), ...BAITS.map(n => load(n).catch(() => null))]);
+const [boatM, fishM, ...baitM] = await Promise.all([load('boat'), load('sword3'), ...BAITS.map(n => load(n).catch(() => null))]);
 boatM.scale.setScalar(10.4); boatM.position.set(0.05, 2.05, 0); boatM.rotation.y = -0.09;      // the generated model sits a few degrees crooked: square it up
 boatM.traverse(o => { if (o.isMesh) { o.material.roughness = 0.42; o.material.metalness = 0; } });
 boatG.add(boatM);
@@ -629,7 +640,6 @@ const RECOLOUR = ['#include <map_fragment>', '{ vec3 c = diffuseColor.rgb; float
   '  vec3 br = vec3(c.b * .40 + c.r * .30, c.b * .25 + c.g * .25, c.b * .30 + c.r * .12); diffuseColor.rgb = mix(c * vec3(.95, .93, .9), br, bl); }'].join('\n');
 function swimPatch(uni) { return sh => {
     sh.uniforms.uSwim = uni.uSwim;
-    sh.fragmentShader = sh.fragmentShader.replace('#include <map_fragment>', RECOLOUR);
     sh.vertexShader = 'uniform float uSwim;\n' + sh.vertexShader.replace('#include <begin_vertex>',
       '#include <begin_vertex>\n float tl = clamp(.5 - position.z, 0., 1.); transformed.x += sin(position.z * 7. + uSwim) * .055 * tl * tl;');
   }; }
@@ -651,7 +661,8 @@ for (let i = 0; i <= ROD_N; i++) {
   let c = [0.93, 0.93, 0.92];
   if (s < 0.20) c = [0.03, 0.03, 0.035]; else if (s < 0.27 || s > 0.975) c = [0.78, 0.04, 0.05];
   for (const w of WRAPS) if (Math.abs(s - w) < 0.02) c = [0.78, 0.04, 0.05];
-  for (let j = 0; j < ROD_R; j++) { rodCol.set(c, (i * ROD_R + j) * 3); if (i < ROD_N) { const a = i * ROD_R + j, b = i * ROD_R + (j + 1) % ROD_R; rodIdx.push(a, b, a + ROD_R, b, b + ROD_R, a + ROD_R); } }
+  for (let j = 0; j < ROD_R; j++) { const pole = s > 0.58 && s < 0.975 && ((s * 16 + j / ROD_R) % 1) < 0.5;
+    rodCol.set(pole ? [0.78, 0.04, 0.05] : c, (i * ROD_R + j) * 3); if (i < ROD_N) { const a = i * ROD_R + j, b = i * ROD_R + (j + 1) % ROD_R; rodIdx.push(a, b, a + ROD_R, b, b + ROD_R, a + ROD_R); } }
 }
 rodGeo.setAttribute('position', new THREE.BufferAttribute(rodPos, 3)); rodGeo.setAttribute('color', new THREE.BufferAttribute(rodCol, 3)); rodGeo.setIndex(rodIdx);
 const rod = new THREE.Mesh(rodGeo, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.32, metalness: 0.05 })); rod.frustumCulled = false; boatG.add(rod);
@@ -661,10 +672,13 @@ const tipRoller = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.026, 1
 // the electric reel: grey body, bright side plates, a spool of yellow braid, the motor on the side
 const reel = new THREE.Group(); boatG.add(reel);
 { const body = new THREE.MeshStandardMaterial({ color: 0x23282d, roughness: 0.45, metalness: 0.5 }), plate = new THREE.MeshStandardMaterial({ color: 0xc8ced3, roughness: 0.25, metalness: 0.9 }),
-        braid = new THREE.MeshStandardMaterial({ color: 0xe7d23c, roughness: 0.8 });
+        braid = new THREE.MeshStandardMaterial({ color: 0x2f5a3c, roughness: 0.85 });
   const cyl = (r, h, m, x) => { const o = new THREE.Mesh(new THREE.CylinderGeometry(r, r, h, 20), m); o.rotation.z = Math.PI / 2; o.position.x = x || 0; reel.add(o); return o; };
-  cyl(0.085, 0.02, plate, -0.075); cyl(0.085, 0.02, plate, 0.075); cyl(0.062, 0.13, braid, 0); cyl(0.09, 0.012, body, -0.088); cyl(0.09, 0.012, body, 0.088);
-  const motor = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.11, 0.16), body); motor.position.set(0.15, 0.0, 0.01); reel.add(motor);
+  cyl(0.092, 0.02, body, -0.075); cyl(0.092, 0.02, body, 0.075); cyl(0.062, 0.13, braid, 0); cyl(0.09, 0.012, body, -0.088); cyl(0.09, 0.012, body, 0.088);
+  const grey = new THREE.MeshStandardMaterial({ color: 0x9a9fa3, roughness: 0.5, metalness: 0.35 });
+  const motor = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.13, 0.18), grey); motor.position.set(0.16, 0.0, 0.01); reel.add(motor);
+  const lcd = new THREE.Mesh(new THREE.BoxGeometry(0.004, 0.035, 0.07), new THREE.MeshStandardMaterial({ color: 0x9fb39a, roughness: 0.3, emissive: 0x39453a, emissiveIntensity: 0.6 })); lcd.position.set(0.227, 0.03, 0.01); reel.add(lcd);
+  [0xd4232b, 0x15181b, 0x2a8fd6, 0xd4232b].forEach((c, i) => { const b = new THREE.Mesh(new THREE.CylinderGeometry(0.011, 0.011, 0.008, 12), new THREE.MeshStandardMaterial({ color: c, roughness: 0.4 })); b.rotation.z = Math.PI / 2; b.position.set(0.228, -0.025, -0.045 + i * 0.037); reel.add(b); });
   const foot = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.03, 0.06), body); foot.position.set(0, -0.085, 0); reel.add(foot);
   const up = new THREE.Vector3(0, 1, 0), side = new THREE.Vector3().crossVectors(ROD_DIR, up).normalize(), top = new THREE.Vector3().crossVectors(side, ROD_DIR).normalize();
   reel.position.copy(ROD_BASE).addScaledVector(ROD_DIR, ROD_LEN * 0.13).addScaledVector(top, 0.11);
@@ -704,7 +718,7 @@ const lineMat = new THREE.LineBasicMaterial({ color: 0xf2e36a });
 const lineGeo = new THREE.BufferGeometry(); lineGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array((WRAPS.length + 3) * 3), 3));
 const line = new THREE.Line(lineGeo, lineMat); line.frustumCulled = false; scene.add(line);
 const rigG = new THREE.Group(); scene.add(rigG);
-const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.07, 12, 8), new THREE.MeshBasicMaterial({ color: 0xaaffe6 })); lamp.position.y = 0.28; rigG.add(lamp);
+const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.10, 12, 8), new THREE.MeshBasicMaterial({ color: 0xaaffe6 })); lamp.position.y = 0.28; rigG.add(lamp);
 const weight = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.09, 0.42, 10), new THREE.MeshStandardMaterial({ color: 0x6f7377, roughness: 0.8, metalness: 0.4 })); weight.position.set(0, -0.62, 0.06); rigG.add(weight);
 const leaderGeo = new THREE.BufferGeometry(); leaderGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(12), 3));
 const leader = new THREE.Line(leaderGeo, new THREE.LineBasicMaterial({ color: 0xd8e4ea, transparent: true, opacity: 0.7 })); leader.frustumCulled = false; rigG.add(leader);
@@ -715,7 +729,7 @@ const bait = new THREE.Group(); rigG.add(bait);
   const skirt = new THREE.Mesh(new THREE.ConeGeometry(0.1, 0.2, 10, 1, true), new THREE.MeshStandardMaterial({ color: 0xc23a5a, roughness: 0.6, side: THREE.DoubleSide })); skirt.rotation.x = -Math.PI / 2; skirt.position.z = 0.36; bait.add(skirt);
 }
 const baitKinds = [];
-baitM.forEach((m, i) => { if (!m) return; const g = new THREE.Group(); if (BAITS[i] === 'squid') { m.scale.setScalar(0.62); m.rotation.x = Math.PI / 2; } else { m.scale.setScalar(0.55); m.rotation.y = +(q.get('bry') || -Math.PI / 2); } g.add(m); g.visible = false; bait.add(g); baitKinds.push(g); });
+baitM.forEach((m, i) => { if (!m) return; const g = new THREE.Group(); if (BAITS[i] === 'squid') { m.scale.setScalar(1.0); m.rotation.x = Math.PI / 2; } else { m.scale.setScalar(0.95); m.rotation.y = +(q.get('bry') || -Math.PI / 2); } g.add(m); g.visible = false; bait.add(g); baitKinds.push(g); });
 if (baitKinds.length) for (const c of bait.children) if (!baitKinds.includes(c)) c.visible = false;      // the stand-in bait built from simple shapes is only a fallback
 let baitRig = null;
 const dartZone = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 3.4), new THREE.MeshBasicMaterial({ color: 0xffd45a, transparent: true, opacity: 0.28, depthWrite: false, side: THREE.DoubleSide }));
@@ -729,23 +743,57 @@ const FIGHT_X = 3.5, ZS_A = (115 - 95) / 190, ZS_B = (220 - 95) / 190;       // 
 const PX = 0.0217, SV = PX / FT;                           // metres per flat-game pixel, and per foot of water
 const CAM_D = 40, CAM_Y = 2.4, VIEW_TOP = 5.3, VIEW_Z = -3.4, CUT_X = 2.6;
 let VW = innerWidth, VH = innerHeight, insetTip = null, waterRow = 0;
+let zoom = 1, panZ = 0, panY = 0, follow = false;
+let orbit = false, landedView = false, oyaw = 2.6, opitch = 0.42, orad = 14;       // look-around camera
+const orbitCam = new THREE.PerspectiveCamera(42, innerWidth / innerHeight, 0.1, 6000);
+function applyView() {
+  const aspect = VW / VH, hfull = Math.max(16.7, 19.5 / aspect), hvis = hfull / zoom, wfull = hfull * aspect, wvis = hvis * aspect, k = 1.7;
+  panY = clamp(panY, 0, hfull - hvis); panZ = clamp(panZ, -(wfull - wvis) / 2, (wfull - wvis) / 2);
+  // a tall picture seen square-on: the lens is shifted, the way a view camera's is, instead of tilting the camera
+  camera.aspect = aspect; camera.fov = 2 * Math.atan(hvis * k / 2 / CAM_D) * 180 / Math.PI;
+  const horizonRow = (VIEW_TOP - panY - CAM_Y) / hvis * VH;
+  camera.setViewOffset(VW * k, VH * k, VW * (k - 1) / 2, VH * k / 2 - horizonRow, VW, VH);
+  camera.position.set(CAM_D, CAM_Y, VIEW_Z + panZ); camera.up.set(0, 1, 0); camera.lookAt(0, CAM_Y, VIEW_Z + panZ); camera.updateMatrixWorld(true);
+  waterRow = Math.round((1 - _v.set(CUT_X, 0, VIEW_Z + panZ).project(camera).y) / 2 * VH);
+  const sf = $('surf'); sf.hidden = waterRow < 0 || waterRow > VH; sf.style.top = waterRow + 'px';
+  return { hvis, wvis };
+}
 function layout() {
   VW = innerWidth; VH = innerHeight; renderer.setSize(VW, VH, false);
   const w = Math.round(clamp(VW * 0.24, 140, 380)), h = Math.round(w * 0.62), top = 12, right = 12;
   insetTip = { x: VW - right - w, y: top, w, h };
   const el = $('in-tip'); el.style.left = insetTip.x + 'px'; el.style.top = insetTip.y + 'px'; el.style.width = w + 'px'; el.style.height = h + 'px';
   if (TOUCH) { $('helm').style.top = (top + h + 8) + 'px'; }
-  tipCam.aspect = w / h; tipCam.updateProjectionMatrix();
-  // a tall picture seen square-on: the lens is shifted down, the way a view camera's is, so the horizon sits near the top
-  const aspect = VW / VH, hvis = Math.max(16.7, 19.5 / aspect), k = 1.7;
-  camera.aspect = aspect; camera.fov = 2 * Math.atan(hvis * k / 2 / CAM_D) * 180 / Math.PI;
-  const horizonRow = (VIEW_TOP - CAM_Y) / hvis * VH;
-  camera.setViewOffset(VW * k, VH * k, VW * (k - 1) / 2, VH * k / 2 - horizonRow, VW, VH);
-  camera.position.set(CAM_D, CAM_Y, VIEW_Z); camera.up.set(0, 1, 0); camera.lookAt(0, CAM_Y, VIEW_Z); camera.updateMatrixWorld(true);
-  waterRow = Math.round((1 - _v.set(CUT_X, 0, VIEW_Z).project(camera).y) / 2 * VH);
-  $('surf').style.top = waterRow + 'px';
+  tipCam.aspect = w / h; tipCam.updateProjectionMatrix(); orbitCam.aspect = VW / VH; orbitCam.updateProjectionMatrix();
+  applyView();
 }
-addEventListener('resize', layout); layout();
+// drag = pan, pinch or wheel = zoom
+const ptrs = new Map(); let pinch0 = 0, zoom0 = 1;
+function setZoom(z) { zoom = clamp(z, 1, 4); if (zoom < 1.02) { zoom = 1; panZ = 0; panY = 0; } applyView(); }
+cv.addEventListener('pointerdown', e => { ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY }); if (ptrs.size === 2) { const [a, b] = [...ptrs.values()]; pinch0 = Math.hypot(a.x - b.x, a.y - b.y); zoom0 = zoom; } });
+addEventListener('pointerup', e => ptrs.delete(e.pointerId)); addEventListener('pointercancel', e => ptrs.delete(e.pointerId));
+addEventListener('pointermove', e => {
+  const p = ptrs.get(e.pointerId); if (!p) return;
+  const dx = e.clientX - p.x, dy = e.clientY - p.y; p.x = e.clientX; p.y = e.clientY;
+  const around = orbit || landedView;
+  if (ptrs.size === 2) { const [a, b] = [...ptrs.values()]; if (pinch0 > 10) { const r = Math.hypot(a.x - b.x, a.y - b.y) / pinch0; if (around) { orad = clamp(orad / (1 + (r - 1) * 0.06), 5, 45); } else { follow = false; setZoom(zoom0 * r); } } return; }
+  if (around) { oyaw -= dx * 0.006; opitch = clamp(opitch + dy * 0.005, 0.05, 1.45); return; }
+  if (zoom <= 1) return;
+  if (Math.abs(dx) + Math.abs(dy) > 0) follow = false;
+  const v = applyView(); panZ += dx * v.wvis / VW; panY -= dy * v.hvis / VH; applyView(); setViewLabel();
+});
+addEventListener('wheel', e => { if (orbit || landedView) { orad = clamp(orad * (e.deltaY < 0 ? 1 / 1.1 : 1.1), 5, 45); return; } follow = false; setZoom(zoom * (e.deltaY < 0 ? 1.12 : 1 / 1.12)); setViewLabel(); }, { passive: true });
+function setViewLabel() { $('b-view').textContent = orbit ? 'VIEW: LOOK AROUND' : follow ? 'VIEW: BAIT' : zoom > 1 ? 'VIEW: FREE' : 'VIEW: WHOLE'; }
+function toggleView() {                                      // whole picture -> follow the bait -> look around the boat -> whole picture
+  if (orbit) { orbit = false; follow = false; zoom = 1; panZ = 0; panY = 0; applyView(); }
+  else if (follow) { follow = false; zoom = 1; panZ = 0; panY = 0; applyView(); orbit = true; }
+  else if (zoom > 1) { zoom = 1; panZ = 0; panY = 0; applyView(); }
+  else { follow = true; zoom = TOUCH ? 3 : 2.6; }
+  setViewLabel();
+}
+$('b-view').addEventListener('click', toggleView);
+addEventListener('keydown', e => { if (e.key.toLowerCase() === 'v' && !e.repeat) toggleView(); });
+addEventListener('resize', layout); layout();addEventListener('resize', layout); layout();
 const fsBtn = $('b-full');
 if (document.fullscreenEnabled && document.documentElement.requestFullscreen) {
   fsBtn.hidden = false;
@@ -778,7 +826,7 @@ function updateHud() {
   $('msg').hidden = !showMsg; if (showMsg) $('msg').textContent = msg;
   $('flash').hidden = !(flash > 0); if (flash > 0) { $('flash').textContent = flashText; $('flash').style.opacity = Math.min(1, flash); }
   const fighting = state === 'fight' && F;
-  $('fight').hidden = !fighting;
+  $('fight').hidden = !fighting; document.documentElement.classList.toggle('fighting', !!fighting);
   if (fighting) {
     const inZone = F.mode === 'boat' && F.x >= ZONE_A && F.x <= ZONE_B, pr = PROMPT[F.mode];
     $('f-p').textContent = inZone ? 'IN THE ZONE: DART NOW' : pr[0]; $('f-p').style.color = pr[1];
@@ -861,8 +909,8 @@ function render() {
     const sway = Math.sin(tt * 0.8) * 0.08;
     bait.position.set(0, rig.tangled ? 0.25 : -0.34, rig.tangled ? 0.05 : -0.42 + sway); bait.rotation.set(rig.tangled ? 1.2 : 0.2, 0, 0);   // the bait trails down-current of the weight
     const lg = leaderGeo.attributes.position; lg.setXYZ(0, 0, 0, 0); lg.setXYZ(1, 0, -0.42, 0.06); lg.setXYZ(2, 0, 0, 0); lg.setXYZ(3, 0, bait.position.y + 0.04, bait.position.z + 0.2); lg.needsUpdate = true;
-    const blink = (tt * 1.6) % 1 < 0.55 ? 1 : 0.25; lamp.material.color.setRGB(0.65 * blink, 1.0 * blink, 0.9 * blink);
-    strobe.position.copy(rigPos); strobe.position.y += 0.3; strobe.intensity = 16 * blink * clamp((-rigPos.y - 2) / 2, 0, 1);
+    const blink = (tt * 1.6) % 1 < 0.55 ? 1 : 0.1; lamp.material.color.setRGB(0.65 * blink, 1.0 * blink, 0.9 * blink);
+    strobe.position.copy(rigPos); strobe.position.y += 0.3; strobe.intensity = 9 * blink * clamp((-rigPos.y - 2) / 2, 0, 1);
   }
   // the fish that are out there
   fishes.forEach((f, i) => {
@@ -878,8 +926,8 @@ function render() {
   for (let i = fishes.length; i < 3; i++) fishPool[i].visible = false;
   if (!fishing) for (let i = 0; i < 3; i++) fishPool[i].visible = false;
   if (state === 'result' && result && result.landed && deckFish.userData.w !== result.wgt + ':' + score.count) {
-    const len = fishMetres(result.wgt) * 0.8; deckFish.userData.w = result.wgt + ':' + score.count;       // laid along the gunwale where you can see him
-    deckFish.scale.setScalar(len); deckFish.rotation.set(0, 0, 0); deckFish.position.set(1.22, 0.80 + 0.21 * len, -1.1);
+    const len = fishMetres(result.wgt); deckFish.userData.w = result.wgt + ':' + score.count;             // laid on the cockpit deck
+    deckFish.scale.setScalar(len); deckFish.rotation.set(0, 0.30, Math.PI / 2, 'YXZ'); deckFish.position.set(-0.15, 0.37 + 0.085 * len, -2.75 - Math.max(0, len - 2.4) * 0.35);
   }
   deckFish.visible = score.count > 0 && !!deckFish.userData.w && state !== 'title';
   dartZone.visible = !!(fighting && F.mode === 'boat');
@@ -890,9 +938,26 @@ function render() {
   }
   zoneBox.visible = dartZone.visible;
 
+  const lit = fighting ? fishPos : rigPos, litOn = fighting || rigUp;
+  if (follow && litOn && lit.y < -0.5) { const v = applyView(); panZ = lit.z - VIEW_Z; panY = VIEW_TOP - (lit.y + v.hvis * 0.58); applyView(); }
+  else if (follow) { panZ += (0 - panZ) * Math.min(1, 3 * lastDt); panY += (0 - panY) * Math.min(1, 3 * lastDt); applyView(); }
+  const blinkNow = fighting ? 0.8 : rigUp ? ((tt * 1.6) % 1 < 0.55 ? 1 : 0.12) : 0;
+  shadeMat.uniforms.uLamp.value.set(lit.z, lit.y + (fighting ? 0 : 0.1)); shadeMat.uniforms.uBlink.value = litOn ? blinkNow : 0; shadeMat.uniforms.uR.value = fighting ? 2.6 : 2.0;
+  const wasLanded = landedView; landedView = state === 'result' && !!result && result.landed;
+  if (landedView && !wasLanded) { oyaw = 2.75; opitch = 1.02; orad = 9.5; }                  // a fish on the deck: look down into the cockpit
+  if (!landedView && wasLanded && !orbit) { oyaw = 2.6; opitch = 0.42; orad = 14; }
+  const around = orbit || landedView;
+  $('surf').style.display = around ? 'none' : '';
   renderer.setScissorTest(true);
+  if (around) {
+    setAir(); floor.visible = false; snow3.visible = false; shade.visible = false; waterNear.visible = waterFar.visible = true;
+    orbitCam.position.set(0.3 + Math.sin(oyaw) * Math.cos(opitch) * orad, 1.0 + Math.sin(opitch) * orad, -1.8 + Math.cos(oyaw) * Math.cos(opitch) * orad); orbitCam.lookAt(0.3, 1.0, -1.8);
+    renderer.setViewport(0, 0, VW, VH); renderer.setScissor(0, 0, VW, VH);
+    waterNear.position.set(Math.round(orbitCam.position.x / 4) * 4, 0, Math.round(orbitCam.position.z / 4) * 4); waterFar.position.set(waterNear.position.x, -0.05, waterNear.position.z);
+    renderer.render(scene, orbitCam);
+  } else {
   // ---- above the water ----
-  setAir(); floor.visible = false; snow3.visible = false; waterNear.visible = waterFar.visible = true;
+  setAir(); floor.visible = false; snow3.visible = false; shade.visible = false; waterNear.visible = waterFar.visible = true;
   renderer.setViewport(0, 0, VW, VH); renderer.setScissor(0, 0, VW, VH);
   waterNear.position.set(0, 0, 0); waterFar.position.set(0, -0.05, 0);
   renderer.render(scene, camera);
@@ -900,13 +965,15 @@ function render() {
   setCut(); floor.visible = true; snow3.visible = true; waterNear.visible = waterFar.visible = false; updateFloor();
   const sp = snowGeo.attributes.position;
   for (let i = 0; i < SNOW_N; i++) { let y = sp.getY(i) - lastDt * 0.05; if (y < -11) y += 11; sp.setY(i, y); } sp.needsUpdate = true;
-  renderer.setScissor(0, 0, VW, Math.max(0, VH - waterRow));
-  renderer.render(scene, camera);
+  shade.visible = true;
+  if (waterRow < VH) { renderer.setScissor(0, 0, VW, VH - Math.max(0, waterRow)); renderer.render(scene, camera); }
+  shade.visible = false;
+  }
   waterNear.visible = waterFar.visible = true;
   if (state !== 'title') {
     // ---- rod tip: from the cockpit, the tip against the horizon ----
     setAir(); floor.visible = false; snow3.visible = false;
-    boatG.localToWorld(tipCam.position.set(0.15, 1.85, -3.3)); tipCam.up.set(0, 1, 0); tipCam.lookAt(_m.copy(tipWorld).add(_v.set(0, -0.12, 0)));
+    boatG.localToWorld(tipCam.position.set(-1.25, 2.2, -4.55)); tipCam.up.set(0, 1, 0); tipCam.lookAt(boatG.localToWorld(_m.set(1.4, 1.82, -5.05)));   // side-on to the rod, from inboard: the tip against the open sea, in a fixed frame so every dip shows
     const r = insetTip; renderer.setViewport(r.x, VH - r.y - r.h, r.w, r.h); renderer.setScissor(r.x, VH - r.y - r.h, r.w, r.h);
     waterNear.position.set(Math.round(tipCam.position.x / 4) * 4, 0, Math.round(tipCam.position.z / 4) * 4);
     renderer.render(scene, tipCam);
