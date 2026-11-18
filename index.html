@@ -892,7 +892,7 @@ function updateHud() {
 // ---------- one frame ----------
 const rigPos = new THREE.Vector3(), fishPos = new THREE.Vector3(1.5, -3, -8), fishShown = new THREE.Vector3(), _q = new THREE.Quaternion(), _m = new THREE.Vector3();
 let fishYawS = Math.PI, fishPitchS = 0;
-const FISH_K = 0.62, BAIT_DZ = -3.8;       /* the bait trails this far down-current of the weight */                                        // fish are drawn a little under life size so they sit right in the squeezed water
+const FISH_K = 0.62, BAIT_DZ = -2.53;       /* the bait trails this far down-current of the weight */                                        // fish are drawn a little under life size so they sit right in the squeezed water
 function setAir() { skyMat.uniforms.uUnder.value = 0; scene.fog.color.set(0xb9d2e8); scene.fog.density = 0.0011; hemi.intensity = 1.25; hemi.color.set(0xbfd8ff); hemi.groundColor.set(0x12324a); sun.intensity = 3.2; sun.color.set(0xfff2dc); }
 function setCut() {                                         // the cut through the sea: bright under the surface, dark toward the bottom
   skyMat.uniforms.uUnder.value = 2; scene.fog.color.setRGB(0.006, 0.075, 0.30); scene.fog.density = 0.016;
@@ -984,7 +984,7 @@ function render() {
   if (follow && litOn && lit.y < -0.5) { const v = applyView(); panZ = lit.z + (fighting ? 0 : BAIT_DZ * 0.5) - VIEW_Z - viewOff(); panY = VIEW_TOP - (lit.y + v.hvis * 0.58); applyView(); }
   else if (follow) { panZ += (0 - panZ) * Math.min(1, 3 * lastDt); panY += (0 - panY) * Math.min(1, 3 * lastDt); applyView(); }
   const blinkNow = fighting ? 0.8 : rigUp ? ((tt * 0.8) % 1 < 0.55 ? 1 : 0.12) : 0;
-  shadeMat.uniforms.uLamp.value.set(lit.z - (fighting ? 0 : 1.9), lit.y + (fighting ? 0 : 0.5)); /* the pool of light takes in the bait as well as the weight */ shadeMat.uniforms.uBlink.value = litOn ? blinkNow : 0; shadeMat.uniforms.uR.value = fighting ? 2.6 : 3.4;
+  shadeMat.uniforms.uLamp.value.set(lit.z - (fighting ? 0 : 1.27), lit.y + (fighting ? 0 : 0.5)); /* the pool of light takes in the bait as well as the weight */ shadeMat.uniforms.uBlink.value = litOn ? blinkNow : 0; shadeMat.uniforms.uR.value = fighting ? 2.6 : 2.9;
   const wasLanded = landedView; landedView = state === 'result' && !!result && result.landed;
   if (landedView && !wasLanded) { oyaw = 2.75; opitch = 1.02; orad = 9.5; }                  // a fish on the deck: look down into the cockpit
   if (!landedView && wasLanded && !orbit) { oyaw = 2.6; opitch = 0.42; orad = 14; }
