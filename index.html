@@ -12,7 +12,7 @@
   #status { left: 12px; top: 12px; } #rigp { left: 12px; bottom: 34px; } #helm { right: 12px; bottom: 34px; }
   .touch #rigp { bottom: auto; top: 96px; } .touch #helm { bottom: auto; }
   .grid { display: grid; grid-template-columns: auto auto; gap: 3px 14px; }
-  #surf { left: 0; right: 0; height: 2px; margin-top: -1px; background: linear-gradient(rgba(255,255,255,.55), rgba(160,225,255,.15)); }
+  #surf { display: none !important; left: 0; right: 0; height: 2px; margin-top: -1px; background: linear-gradient(rgba(255,255,255,.55), rgba(160,225,255,.15)); }
   #b-full { position: fixed; top: 10px; left: calc(50% + 8px); font: 600 10.5px var(--ui); letter-spacing: .08em; color: var(--fg); background: rgba(6,14,22,.5); border: 1px solid var(--line); border-radius: 999px; padding: 4px 11px; opacity: .8; cursor: pointer; }
   #b-full:hover, #b-view:hover { opacity: 1; color: var(--strong); }
   #b-view { position: fixed; top: 10px; left: calc(50% + 104px); font: 600 10.5px var(--ui); letter-spacing: .08em; color: var(--fg); background: rgba(6,14,22,.5); border: 1px solid var(--line); border-radius: 999px; padding: 4px 11px; opacity: .8; cursor: pointer; white-space: nowrap; }
@@ -499,7 +499,7 @@ const sky = new THREE.Mesh(new THREE.SphereGeometry(2500, 48, 24), skyMat); sky.
 const waterMat = new THREE.ShaderMaterial({
   side: THREE.DoubleSide,
   uniforms: { uT: { value: 0 }, uSun: { value: sunDir }, uW: { value: WAVES.map(w => new THREE.Vector4(w.dx * w.k, w.dz * w.k, w.a, w.om)) },
-              uOff: { value: 0 }, uKt: { value: 0 }, uDeep: { value: new THREE.Color(0x05294d) } },
+              uOff: { value: 0 }, uKt: { value: 0 }, uCutX: { value: 1e9 }, uDeep: { value: new THREE.Color(0x05294d) } },
   vertexShader: `
     uniform float uT, uOff; uniform vec4 uW[5];
     varying vec3 vP;
@@ -512,9 +512,10 @@ const waterMat = new THREE.ShaderMaterial({
       gl_Position = projectionMatrix * viewMatrix * wp;
     }`,
   fragmentShader: SKY_GLSL + `
-    uniform float uT, uOff, uKt; uniform vec4 uW[5]; uniform vec3 uDeep;
+    uniform float uT, uOff, uKt, uCutX; uniform vec4 uW[5]; uniform vec3 uDeep;
     varying vec3 vP;
     void main() {
+      if (vP.x > uCutX) discard;
       vec3 V = normalize(cameraPosition - vP); float dist = length(cameraPosition - vP);
       vec2 p = vP.xz + vec2(0., uOff);
       vec2 g = vec2(0.);
@@ -578,8 +579,8 @@ const camLight = new THREE.PointLight(0xcfe8ff, 0, 40, 1.4); scene.add(camLight)
 
 // ---------- sea floor under the bait ----------
 const FLOOR_N = 96, FLOOR_SIZE = 110;
-const floorGeo = new THREE.PlaneGeometry(FLOOR_SIZE, FLOOR_SIZE, FLOOR_N, FLOOR_N); floorGeo.rotateX(-Math.PI / 2);
-const floorMat = new THREE.MeshStandardMaterial({ color: 0x8b8f8c, roughness: 1, metalness: 0 });
+const floorGeo = new THREE.PlaneGeometry(8.6, FLOOR_SIZE, 6, FLOOR_N);   // from just behind the line toward the camera: its far edge is the bottom contour you see floorGeo.rotateX(-Math.PI / 2);
+const floorMat = new THREE.MeshStandardMaterial({ color: 0xd6ceb2, roughness: 1, metalness: 0 });
 const floor = new THREE.Mesh(floorGeo, floorMat); floor.frustumCulled = false; scene.add(floor);
 const hash2 = (a, b) => { const s = Math.sin(a * 127.1 + b * 311.7) * 43758.5453; return s - Math.floor(s); };
 function updateFloor() {                                   // the same bottom the game measures, sliding under the boat as she moves over the ground
@@ -590,12 +591,12 @@ function updateFloor() {                                   // the same bottom th
   }
   p.needsUpdate = true; floorGeo.computeVertexNormals();
 }
-floor.position.set(-FLOOR_SIZE / 2 + 6, 0, -3.4);
+floor.position.set(5.2, 0, -3.4);
 const shadeMat = new THREE.ShaderMaterial({
   transparent: true, depthTest: false, depthWrite: false, uniforms: { uLamp: { value: new THREE.Vector2(0, -8) }, uBlink: { value: 0 }, uR: { value: 2 } },
   vertexShader: 'varying vec3 vP; void main() { vec4 wp = modelMatrix * vec4(position, 1.); vP = wp.xyz; gl_Position = projectionMatrix * viewMatrix * wp; }',
   fragmentShader: 'uniform vec2 uLamp; uniform float uBlink, uR; varying vec3 vP;' +
-    ' void main() { float dark = (1. - smoothstep(-8.0, -1.5, vP.y)) * .80; vec2 d = vP.zy - uLamp; float glow = uBlink * exp(-dot(d, d) / (uR * uR));' +
+    ' void main() { float dark = (1. - smoothstep(-8.0, -1.5, vP.y)) * .70; vec2 d = vP.zy - uLamp; float glow = uBlink * exp(-dot(d, d) / (uR * uR));' +
     ' gl_FragColor = vec4(vec3(.001, .022, .11) + vec3(.10, .32, .26) * glow * .5, dark * (1. - .93 * glow)); }',
 });
 const shade = new THREE.Mesh(new THREE.PlaneGeometry(120, 16), shadeMat); shade.rotation.y = Math.PI / 2; shade.position.set(2.3, -8, -3.4); shade.renderOrder = 50; shade.visible = false; shade.frustumCulled = false; scene.add(shade);
@@ -741,7 +742,19 @@ const FIGHT_X = 3.5, ZS_A = (115 - 95) / 190, ZS_B = (220 - 95) / 190;       // 
 // One picture: the boat on top of the water, and under her a cut through the sea down to the bottom,
 // squeezed the same way the flat game squeezed it (1,600 ft of water in the height of the screen).
 const PX = 0.0217, SV = PX / FT;                           // metres per flat-game pixel, and per foot of water
-const CAM_D = 40, CAM_Y = 2.4, VIEW_TOP = 5.3, VIEW_Z = -3.4, CUT_X = 2.6;
+const CAM_D = 40, CAM_Y = 2.4, VIEW_TOP = 5.3, VIEW_Z = -3.4, CUT_X = 1.8;
+renderer.autoClear = false;
+// the cut face of the sea: an unseen sheet from the wave tops down, right beside the boat. What is behind and below it stays the underwater picture.
+const CURT_N = 220, CURT_Z0 = -3.4 - 60, CURT_DZ = 120 / CURT_N;
+const curtGeo = new THREE.BufferGeometry(); { const p = new Float32Array((CURT_N + 1) * 6), ix = [];
+  for (let i = 0; i <= CURT_N; i++) { const z = CURT_Z0 + i * CURT_DZ; p.set([CUT_X, 0, z, CUT_X, -40, z], i * 6); if (i < CURT_N) { const a = i * 2; ix.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); } }
+  curtGeo.setAttribute('position', new THREE.BufferAttribute(p, 3)); curtGeo.setIndex(ix); }
+const maskScene = new THREE.Scene(); { const m = new THREE.Mesh(curtGeo, new THREE.MeshBasicMaterial({ colorWrite: false, side: THREE.DoubleSide })); m.frustumCulled = false; maskScene.add(m); }
+const surfGeo = new THREE.BufferGeometry(); surfGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array((CURT_N + 1) * 3), 3));
+const surfLine = new THREE.Line(surfGeo, new THREE.LineBasicMaterial({ color: 0xdff4ff, transparent: true, opacity: 0.75, fog: false })); surfLine.frustumCulled = false; surfLine.visible = false; scene.add(surfLine);
+function updateCurtain(tt) { const p = curtGeo.attributes.position, q2 = surfGeo.attributes.position;
+  for (let i = 0; i <= CURT_N; i++) { const z = CURT_Z0 + i * CURT_DZ, y = waveH(CUT_X, z, tt); p.setY(i * 2, y); q2.setXYZ(i, CUT_X - 0.02, y + 0.015, z); }
+  p.needsUpdate = true; q2.needsUpdate = true; }
 let VW = innerWidth, VH = innerHeight, insetTip = null, waterRow = 0;
 let zoom = 1, panZ = 0, panY = 0, follow = false;
 let orbit = false, landedView = false, oyaw = 2.6, opitch = 0.42, orad = 14;       // look-around camera
@@ -948,7 +961,7 @@ function render() {
   if (!landedView && wasLanded && !orbit) { oyaw = 2.6; opitch = 0.42; orad = 14; }
   const around = orbit || landedView;
   $('surf').style.display = around ? 'none' : '';
-  renderer.setScissorTest(true);
+  renderer.setScissorTest(false); renderer.setViewport(0, 0, VW, VH); renderer.clear(); waterMat.uniforms.uCutX.value = 1e9;
   if (around) {
     setAir(); floor.visible = false; snow3.visible = false; shade.visible = false; waterNear.visible = waterFar.visible = true;
     orbitCam.position.set(0.3 + Math.sin(oyaw) * Math.cos(opitch) * orad, 1.0 + Math.sin(opitch) * orad, -1.8 + Math.cos(oyaw) * Math.cos(opitch) * orad); orbitCam.lookAt(0.3, 1.0, -1.8);
@@ -956,18 +969,18 @@ function render() {
     waterNear.position.set(Math.round(orbitCam.position.x / 4) * 4, 0, Math.round(orbitCam.position.z / 4) * 4); waterFar.position.set(waterNear.position.x, -0.05, waterNear.position.z);
     renderer.render(scene, orbitCam);
   } else {
-  // ---- above the water ----
-  setAir(); floor.visible = false; snow3.visible = false; shade.visible = false; waterNear.visible = waterFar.visible = true;
-  renderer.setViewport(0, 0, VW, VH); renderer.setScissor(0, 0, VW, VH);
-  waterNear.position.set(0, 0, 0); waterFar.position.set(0, -0.05, 0);
-  renderer.render(scene, camera);
-  // ---- under the water: the same camera, with the sea cut away in front of the boat ----
-  setCut(); floor.visible = true; snow3.visible = true; waterNear.visible = waterFar.visible = false; updateFloor();
+  // ---- under the water first: the whole cut through the sea ----
+  setCut(); floor.visible = true; snow3.visible = true; shade.visible = true; waterNear.visible = waterFar.visible = false; updateFloor();
   const sp = snowGeo.attributes.position;
   for (let i = 0; i < SNOW_N; i++) { let y = sp.getY(i) - lastDt * 0.05; if (y < -11) y += 11; sp.setY(i, y); } sp.needsUpdate = true;
-  shade.visible = true;
-  if (waterRow < VH) { renderer.setScissor(0, 0, VW, VH - Math.max(0, waterRow)); renderer.render(scene, camera); }
-  shade.visible = false;
+  renderer.render(scene, camera);
+  // ---- then the unseen cut face, which follows the waves ----
+  renderer.clearDepth(); updateCurtain(tt); renderer.render(maskScene, camera);
+  // ---- then everything above the water, drawn only where the cut face does not cover it ----
+  setAir(); floor.visible = false; snow3.visible = false; shade.visible = false; waterNear.visible = waterFar.visible = true; surfLine.visible = true;
+  waterNear.position.set(0, 0, 0); waterFar.position.set(0, -0.05, 0); waterMat.uniforms.uCutX.value = CUT_X;
+  renderer.render(scene, camera);
+  surfLine.visible = false; waterMat.uniforms.uCutX.value = 1e9;
   }
   waterNear.visible = waterFar.visible = true;
   if (state !== 'title') {
@@ -976,7 +989,7 @@ function render() {
     boatG.localToWorld(tipCam.position.set(-1.25, 2.2, -4.55)); tipCam.up.set(0, 1, 0); tipCam.lookAt(boatG.localToWorld(_m.set(1.4, 1.82, -5.05)));   // side-on to the rod, from inboard: the tip against the open sea, in a fixed frame so every dip shows
     const r = insetTip; renderer.setViewport(r.x, VH - r.y - r.h, r.w, r.h); renderer.setScissor(r.x, VH - r.y - r.h, r.w, r.h);
     waterNear.position.set(Math.round(tipCam.position.x / 4) * 4, 0, Math.round(tipCam.position.z / 4) * 4);
-    renderer.render(scene, tipCam);
+    renderer.setScissorTest(true); renderer.clear(); renderer.render(scene, tipCam);
   }
   renderer.setScissorTest(false);
   updateHud();
