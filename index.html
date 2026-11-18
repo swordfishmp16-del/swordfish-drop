@@ -594,9 +594,14 @@ const camLight = new THREE.PointLight(0xcfe8ff, 0, 40, 1.4); scene.add(camLight)
 
 // ---------- sea floor under the bait ----------
 const FLOOR_N = 96, FLOOR_SIZE = 110;
-const floorGeo = new THREE.PlaneGeometry(8.6, FLOOR_SIZE, 6, FLOOR_N);   // from just behind the line toward the camera: its far edge is the bottom contour you see floorGeo.rotateX(-Math.PI / 2);
-const floorMat = new THREE.MeshStandardMaterial({ color: 0xd6ceb2, roughness: 1, metalness: 0 });
-const floor = new THREE.Mesh(floorGeo, floorMat); floor.frustumCulled = false; scene.add(floor);
+const floorGeo = new THREE.PlaneGeometry(8.6, FLOOR_SIZE, 6, FLOOR_N); /* from just behind the line toward the camera: its far edge is the bottom contour you see */ floorGeo.rotateX(-Math.PI / 2);
+/* brown sea floor, drawn after the dark-water shade so it always shows */
+const floorMat = new THREE.MeshStandardMaterial({ color: 0x8a5a30, roughness: 1, metalness: 0, fog: false, transparent: true });
+const floor = new THREE.Mesh(floorGeo, floorMat); floor.frustumCulled = false; floor.renderOrder = 60; scene.add(floor);
+/* the zone: 40 to 150 ft off the bottom, marked as a faint green band that follows the bottom */
+const ZONE_LO = 40, ZONE_HI = 150, ZB_N = 110;
+const zbGeo = new THREE.BufferGeometry(); { const p = new Float32Array((ZB_N + 1) * 6), ix = []; for (let i = 0; i < ZB_N; i++) { const a = i * 2; ix.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); } zbGeo.setAttribute('position', new THREE.BufferAttribute(p, 3)); zbGeo.setIndex(ix); }
+const zoneBand = new THREE.Mesh(zbGeo, new THREE.MeshBasicMaterial({ color: 0x7dffa0, transparent: true, opacity: 0.16, depthWrite: false, side: THREE.DoubleSide, fog: false })); zoneBand.frustumCulled = false; zoneBand.renderOrder = 61; floor.add(zoneBand);
 const hash2 = (a, b) => { const s = Math.sin(a * 127.1 + b * 311.7) * 43758.5453; return s - Math.floor(s); };
 function updateFloor() {                                   // the same bottom the game measures, sliding under the boat as she moves over the ground
   const p = floorGeo.attributes.position, ftPerM = FT / 0.0217;
@@ -605,6 +610,9 @@ function updateFloor() {                                   // the same bottom th
     p.setY(i, -bottomAt(wx) / ftPerM + 0.09 * Math.sin(wx / 37 + x * 0.45) + 0.05 * Math.sin(wx / 13 - x * 0.9) + 0.03 * Math.sin(wx / 5 + x * 2.1));
   }
   p.needsUpdate = true; floorGeo.computeVertexNormals();
+  const zp = zbGeo.attributes.position;
+  for (let i = 0; i <= ZB_N; i++) { const zl = (i / ZB_N - 0.5) * FLOOR_SIZE, b = -bottomAt(boat.wx - (zl + 2.0) * ftPerM) / ftPerM; zp.setXYZ(i * 2, -4.2, b + ZONE_LO / ftPerM, zl); zp.setXYZ(i * 2 + 1, -4.2, b + ZONE_HI / ftPerM, zl); }
+  zp.needsUpdate = true;
 }
 floor.position.set(5.2, 0, -3.4);
 const shadeMat = new THREE.ShaderMaterial({
@@ -734,8 +742,8 @@ const lineMat = new THREE.LineBasicMaterial({ color: 0xf2e36a });
 const lineGeo = new THREE.BufferGeometry(); lineGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array((WRAPS.length + 3) * 3), 3));
 const line = new THREE.Line(lineGeo, lineMat); line.frustumCulled = false; scene.add(line);
 const rigG = new THREE.Group(); scene.add(rigG);
-const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.10, 12, 8), new THREE.MeshBasicMaterial({ color: 0xaaffe6 })); lamp.position.y = 0.28; rigG.add(lamp);
-const weight = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.09, 0.42, 10), new THREE.MeshStandardMaterial({ color: 0x6f7377, roughness: 0.8, metalness: 0.4 })); weight.position.set(0, -0.62, 0.06); rigG.add(weight);
+const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.10, 12, 8), new THREE.MeshBasicMaterial({ color: 0xaaffe6 })); lamp.position.y = 0.75; rigG.add(lamp);
+const weight = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.09, 0.42, 10), new THREE.MeshStandardMaterial({ color: 0x6f7377, roughness: 0.8, metalness: 0.4 })); weight.position.set(0, 0.22, 0.06); rigG.add(weight);
 const leaderGeo = new THREE.BufferGeometry(); leaderGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(12), 3));
 const leader = new THREE.Line(leaderGeo, new THREE.LineBasicMaterial({ color: 0xd8e4ea, transparent: true, opacity: 0.7 })); leader.frustumCulled = false; rigG.add(leader);
 const bait = new THREE.Group(); rigG.add(bait);
@@ -848,7 +856,7 @@ function updateHud() {
   if (showRig) {
     const off = Math.round(rig.bot - rig.d);
     $('rigp').innerHTML = row('LINE OUT', Math.round(rig.L) + ' FT') + row('DEPTH', Math.round(bottomAt(boat.wx)) + ' FT') +
-      row('OFF BOTTOM', rig.onBottom ? 'ON BOTTOM' : rig.L < 200 ? 'NEAR TOP' : off + ' FT', rig.onBottom ? 'bad' : (off >= 40 && off <= 100 && rig.L >= 200) ? 'go' : '') +
+      row('OFF BOTTOM', rig.onBottom ? 'ON BOTTOM' : rig.L < 200 ? 'NEAR TOP' : off + ' FT', rig.onBottom ? 'bad' : (off >= ZONE_LO && off <= ZONE_HI && rig.L >= 200) ? 'go' : '') +
       (rig.tangle > 0.1 ? row('LEADER WRAP', Math.round(clamp(rig.tangle, 0, 1) * 100) + '%', rig.tangle > 0.7 ? 'bad' : 'warn') : row('LINE ANGLE', Math.round(rig.angle) + '&deg;', rig.angle > 30 ? 'bad' : ''));
   }
   $('status').hidden = $('helm').hidden = !playing; $('rigp').hidden = !showRig;
@@ -867,7 +875,7 @@ function updateHud() {
   }
   let card = '';
   const go = TOUCH ? 'Tap here' : 'Press Enter or click here';
-  if (state === 'title') card = '<h1>SWORDFISH DROP</h1><p>Daytime swordfishing: one bait, 1,600 feet down, on the bottom.</p><p>Hold the boat against the current with the engine lever, keep the bait 40 to 100 ft off the bottom, and watch the rod tip.</p><p>Come tight, fight him up, and dart him at the boat.</p><p>Six baits. Lines up at 5:00 PM.</p><p><b>' + go + ' to start</b></p>';
+  if (state === 'title') card = '<h1>SWORDFISH DROP</h1><p>Daytime swordfishing: one bait, 1,600 feet down, on the bottom.</p><p>Hold the boat against the current with the engine lever, keep the bait 40 to 150 ft off the bottom, and watch the rod tip.</p><p>Come tight, fight him up, and dart him at the boat.</p><p>Six baits. Lines up at 5:00 PM.</p><p><b>' + go + ' to start</b></p>';
   else if (state === 'result') card = result.landed
     ? '<h1 style="color:var(--go)">' + result.text + '</h1><p>' + result.wgt + ' lb swordfish</p><p>Fight time: about ' + result.mins + ' minutes</p><p><b>' + go + ' to keep fishing</b></p>'
     : '<h1 style="color:var(--bad)">' + result.text + '</h1><p>' + result.sub + '</p><p>He looked like about ' + Math.max(50, Math.round(result.wgt / 50) * 50) + ' lb.</p><p><b>' + go + ' to continue</b></p>';
@@ -937,10 +945,10 @@ function render() {
     rigG.position.copy(rigPos); bait.visible = rig.bait; weight.visible = !rig.lost;
     if (baitRig !== rig && baitKinds.length) { baitRig = rig; const pick = q.has('bait') ? +q.get('bait') : Math.floor(Math.random() * baitKinds.length); baitKinds.forEach((g, i) => { g.visible = i === pick; }); }
     const sway = Math.sin(tt * 0.8) * 0.08;
-    bait.position.set(0, rig.tangled ? 0.25 : -0.22 + sway * 0.5, rig.tangled ? 0.05 : -1.9 + sway); bait.rotation.set(rig.tangled ? 1.2 : 0.2, 0, 0);   // the bait trails down-current of the weight
-    const lg = leaderGeo.attributes.position; lg.setXYZ(0, 0, 0, 0); lg.setXYZ(1, 0, -0.5, 0.06); lg.setXYZ(2, 0, 0, 0); lg.setXYZ(3, 0, bait.position.y + 0.04, bait.position.z + 0.2); lg.needsUpdate = true;
-    const blink = (tt * 1.6) % 1 < 0.55 ? 1 : 0.1; lamp.material.color.setRGB(0.65 * blink, 1.0 * blink, 0.9 * blink);
-    strobe.position.copy(rigPos); strobe.position.y += 0.3; strobe.intensity = 9 * blink * clamp((-rigPos.y - 2) / 2, 0, 1);
+    bait.position.set(0, rig.tangled ? 0.8 : 0.42 + sway * 0.5, rig.tangled ? 0.05 : -3.8 + sway); bait.rotation.set(rig.tangled ? 1.2 : 0.2, 0, 0);   // the bait trails down-current of the weight
+    const lg = leaderGeo.attributes.position; lg.setXYZ(0, 0, 0.75, 0); lg.setXYZ(1, 0, 0.42, 0.06); lg.setXYZ(2, 0, 0.6, 0); lg.setXYZ(3, 0, bait.position.y + 0.04, bait.position.z + 0.2); lg.needsUpdate = true;
+    const blink = (tt * 0.8) % 1 < 0.55 ? 1 : 0.1; lamp.material.color.setRGB(0.65 * blink, 1.0 * blink, 0.9 * blink);
+    strobe.position.copy(rigPos); strobe.position.y += 0.75; strobe.intensity = 9 * blink * clamp((-rigPos.y - 2) / 2, 0, 1);
   }
   // the fish that are out there
   fishes.forEach((f, i) => {
@@ -948,7 +956,7 @@ function render() {
     const len = fishMetres(f.wgt) * FISH_K, engaged = rig.bite && rig.bite.fish === f;
     _m.set(tipWorld.x - 0.9 - Math.abs(Math.sin(f.phase)) * 1.6, -fishDepth(f) * SV + Math.sin(tt * 0.9 + f.phase) * 0.06, tipWorld.z - (f.wx - boat.wx) * SV);
     let yw = f.dir > 0 ? Math.PI : 0;
-    if (engaged) { const a = tt * 0.9 + f.phase, r = 0.5 + len * 0.42; _m.set(rigPos.x - 0.5 + Math.cos(a) * r * 0.5, rigPos.y - 0.22 + Math.sin(tt * 1.7) * 0.06, rigPos.z - 1.9 + Math.sin(a) * r); /* he works the bait, not the weight */ yw = -a; }
+    if (engaged) { const a = tt * 0.9 + f.phase, r = 0.5 + len * 0.42; _m.set(rigPos.x - 0.5 + Math.cos(a) * r * 0.5, rigPos.y + 0.42 + Math.sin(tt * 1.7) * 0.06, rigPos.z - 3.8 + Math.sin(a) * r); /* he works the bait, not the weight */ yw = -a; }
     if (!g.visible || g.position.distanceTo(_m) > 12) g.position.copy(_m); else g.position.lerp(_m, Math.min(1, 2.5 * lastDt));
     let dy = yw - (g.userData.yaw ?? yw); dy = Math.atan2(Math.sin(dy), Math.cos(dy)); g.userData.yaw = (g.userData.yaw ?? yw) + dy * Math.min(1, 3 * lastDt);
     g.visible = Math.abs(_m.z - VIEW_Z) < 22; g.scale.setScalar(len); g.rotation.set(0, g.userData.yaw, 0);
@@ -971,8 +979,8 @@ function render() {
   const lit = fighting ? fishPos : rigPos, litOn = fighting || rigUp;
   if (follow && litOn && lit.y < -0.5) { const v = applyView(); panZ = lit.z - VIEW_Z - viewOff(); panY = VIEW_TOP - (lit.y + v.hvis * 0.58); applyView(); }
   else if (follow) { panZ += (0 - panZ) * Math.min(1, 3 * lastDt); panY += (0 - panY) * Math.min(1, 3 * lastDt); applyView(); }
-  const blinkNow = fighting ? 0.8 : rigUp ? ((tt * 1.6) % 1 < 0.55 ? 1 : 0.12) : 0;
-  shadeMat.uniforms.uLamp.value.set(lit.z - (fighting ? 0 : 0.9), lit.y + (fighting ? 0 : 0.05)); /* the pool of light takes in the bait as well as the weight */ shadeMat.uniforms.uBlink.value = litOn ? blinkNow : 0; shadeMat.uniforms.uR.value = 2.6;
+  const blinkNow = fighting ? 0.8 : rigUp ? ((tt * 0.8) % 1 < 0.55 ? 1 : 0.12) : 0;
+  shadeMat.uniforms.uLamp.value.set(lit.z - (fighting ? 0 : 1.9), lit.y + (fighting ? 0 : 0.5)); /* the pool of light takes in the bait as well as the weight */ shadeMat.uniforms.uBlink.value = litOn ? blinkNow : 0; shadeMat.uniforms.uR.value = fighting ? 2.6 : 3.4;
   const wasLanded = landedView; landedView = state === 'result' && !!result && result.landed;
   if (landedView && !wasLanded) { oyaw = 2.75; opitch = 1.02; orad = 9.5; }                  // a fish on the deck: look down into the cockpit
   if (!landedView && wasLanded && !orbit) { oyaw = 2.6; opitch = 0.42; orad = 14; }
