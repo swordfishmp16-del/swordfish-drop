@@ -9,11 +9,16 @@
   canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
   .hud { position: fixed; pointer-events: none; }
   .box { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; }
-  #status { left: 12px; top: 12px; display: grid; grid-template-columns: auto auto; gap: 3px 14px; }
-  #status span { font-size: 10px; letter-spacing: .08em; color: var(--dim); align-self: center; }
-  #status b { font: 600 15px var(--ui); color: var(--strong); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  #status { left: 12px; top: 12px; } #rigp { left: 12px; bottom: 34px; } #helm { right: 12px; bottom: 34px; }
+  .touch #rigp { bottom: auto; top: 96px; } .touch #helm { bottom: auto; }
+  .grid { display: grid; grid-template-columns: auto auto; gap: 3px 14px; }
+  #surf { left: 0; right: 0; height: 2px; margin-top: -1px; background: linear-gradient(rgba(255,255,255,.55), rgba(160,225,255,.15)); }
+  #b-full { position: fixed; top: 10px; left: calc(50% + 8px); font: 600 10.5px var(--ui); letter-spacing: .08em; color: var(--fg); background: rgba(6,14,22,.5); border: 1px solid var(--line); border-radius: 999px; padding: 4px 11px; opacity: .8; cursor: pointer; }
+  #b-full:hover { opacity: 1; color: var(--strong); }
+  .grid span { font-size: 10px; letter-spacing: .08em; color: var(--dim); align-self: center; }
+  .grid b { font: 600 15px var(--ui); color: var(--strong); font-variant-numeric: tabular-nums; white-space: nowrap; }
   b.go { color: var(--go) !important; } b.bad { color: var(--bad) !important; } b.warn { color: var(--warn) !important; }
-  #msg { left: 50%; top: 44px; transform: translateX(-50%); max-width: min(420px, 44vw); font-size: 15px; color: var(--strong); text-align: center; }
+  #msg { left: 50%; top: 40px; transform: translateX(-50%); max-width: min(420px, 44vw); font-size: 15px; color: var(--strong); text-align: center; }
   #flash { left: 0; right: 0; top: 30%; text-align: center; font: 300 52px var(--ui); color: #fff; text-shadow: 0 2px 18px rgba(0,0,0,.6); }
   .inset { border: 1px solid rgba(200,225,240,.55); border-radius: 6px; box-shadow: 0 0 0 1px rgba(0,0,0,.4); }
   .inset i { position: absolute; left: 8px; top: 6px; font: 600 10px var(--ui); letter-spacing: .1em; font-style: normal; color: rgba(255,255,255,.9); text-shadow: 0 1px 3px rgba(0,0,0,.8); }
@@ -30,7 +35,7 @@
   #card.low { top: auto; bottom: 14px; transform: translateX(-50%); padding: 12px 22px; width: min(520px, 80vw); } #card.low h1 { font-size: 28px; margin-bottom: 4px; } #card.low p { font-size: 14px; margin: 2px 0; }
   #card h1 { font: 300 40px var(--ui); margin: 0 0 12px; color: var(--strong); }
   #card p { margin: 4px 0; font-size: 16px; line-height: 1.5; }
-  .shop { position: fixed; top: 10px; left: 50%; transform: translateX(-50%); font: 600 10.5px var(--ui); letter-spacing: .08em; color: var(--fg); text-decoration: none;
+  .shop { position: fixed; top: 10px; left: 50%; transform: translateX(-100%); font: 600 10.5px var(--ui); letter-spacing: .08em; color: var(--fg); text-decoration: none;
           background: rgba(6,14,22,.5); border: 1px solid var(--line); border-radius: 999px; padding: 4px 11px; opacity: .8; white-space: nowrap; }
   .shop:hover { opacity: 1; color: var(--strong); }
   .pad { position: fixed; bottom: 12px; display: none; flex-direction: column; gap: 8px; }
@@ -39,25 +44,28 @@
                 width: 88px; min-height: 50px; touch-action: none; user-select: none; -webkit-user-select: none; }
   .pad button.on, .pad button:active { background: rgba(60,90,115,.85); } .pad .go { color: var(--go); } .pad .dart { color: var(--warn); }
   #keys { left: 12px; bottom: 10px; font-size: 11px; letter-spacing: .05em; color: rgba(255,255,255,.7); text-shadow: 0 1px 3px rgba(0,0,0,.7); }
-  .touch #keys { display: none; } .touch #fight { bottom: 8px; width: min(360px, 44vw); } .touch #status b { font-size: 13px; }
+  .touch #keys { display: none; } .touch #fight { bottom: 8px; width: min(360px, 44vw); } .touch .grid b { font-size: 13px; }
   [hidden] { display: none !important; }
 </style>
 <script type="importmap">{"imports":{"three":"./three.module.min.js"}}</script>
 </head><body>
 <canvas id="c"></canvas>
 <a class="shop" href="https://www.salttidegear.com" target="_blank" rel="noopener">SALTTIDEGEAR.COM &#8599;</a>
-<div class="hud box" id="status"></div>
+<div class="hud box grid" id="status"></div>
+<div class="hud box grid" id="rigp" hidden></div>
+<div class="hud box grid" id="helm" hidden></div>
+<div class="hud" id="surf"></div>
+<button type="button" id="b-full" hidden>FULL SCREEN</button>
 <div class="hud box" id="msg" hidden></div>
 <div class="hud" id="flash" hidden></div>
 <div class="hud inset" id="in-tip"><i>ROD TIP</i></div>
-<div class="hud inset" id="in-deep"><i id="deep-l">BAIT CAMERA</i></div>
 <div class="hud box" id="fight" hidden>
   <div class="p" id="f-p"></div>
   <div class="row"><span>LINE OUT <b id="f-line"></b></span><span>FISH ENERGY <span class="en"><div id="f-en"></div></span></span></div>
   <div class="bar"><div id="f-bar"></div></div><small id="f-s"></small>
 </div>
 <div class="hud box" id="card"></div>
-<div class="hud" id="keys">LEFT / RIGHT = ENGINE LEVER &middot; DOWN = DROP &middot; UP OR SPACE = WIND &middot; F = DART &middot; DRAG = LOOK AROUND</div>
+<div class="hud" id="keys">LEFT / RIGHT = ENGINE LEVER &middot; DOWN = DROP &middot; UP OR SPACE = WIND &middot; F = DART</div>
 <div class="pad" id="pad-l"><button type="button" id="b-ahead" class="go">AHEAD</button><button type="button" id="b-astern">ASTERN</button></div>
 <div class="pad" id="pad-r"><button type="button" id="b-wind" class="go">WIND<br>hold</button><button type="button" id="b-drop">DROP<br>hold</button><button type="button" id="b-dart" class="dart">DART</button></div>
 <script type="module">
@@ -475,7 +483,8 @@ const skyMat = new THREE.ShaderMaterial({
     void main() { vec3 d = normalize(vD); vec3 c = skyCol(d, 1.);
       c += vec3(1., .96, .88) * smoothstep(.9994, .9998, dot(d, uSun)) * 12.;
       if (d.y < 0.) c = mix(skyBase(normalize(vec3(d.x, .02, d.z))), vec3(.01, .05, .12), 1. - smoothstep(-.06, 0., d.y));
-      if (uUnder > .5) c = uDeep * (d.y > 0. ? 1. + .7 * d.y : 1. + .8 * d.y);          // open water in every direction, a little lighter overhead
+      if (uUnder > 1.5) c = mix(vec3(.030, .30, .50), vec3(.003, .018, .05), smoothstep(-.015, -.34, d.y)) + vec3(.10, .22, .22) * smoothstep(-.06, -.0, d.y);
+      else if (uUnder > .5) c = uDeep * (d.y > 0. ? 1. + .7 * d.y : 1. + .8 * d.y);          // open water in every direction, a little lighter overhead
       gl_FragColor = vec4(c, 1.);
       #include <tonemapping_fragment>
       #include <colorspace_fragment>
@@ -561,35 +570,36 @@ const waterFar = new THREE.Mesh(farGeo, waterMat); waterFar.position.y = -0.05; 
 const sun = new THREE.DirectionalLight(0xfff2dc, 3.2); sun.position.copy(sunDir).multiplyScalar(100); scene.add(sun);
 const hemi = new THREE.HemisphereLight(0xbfd8ff, 0x12324a, 1.25); scene.add(hemi);
 scene.fog = new THREE.FogExp2(0xb9d2e8, 0.0011);
-const strobe = new THREE.PointLight(0x9fffe0, 0, 60, 1.6); scene.add(strobe);         // the light on the rig
+const strobe = new THREE.PointLight(0x9fffe0, 0, 9, 1.4); scene.add(strobe);         // the light on the rig
 const camLight = new THREE.PointLight(0xcfe8ff, 0, 40, 1.4); scene.add(camLight);     // the bait camera's own lamp
 
 // ---------- sea floor under the bait ----------
-const FLOOR_N = 72, FLOOR_SIZE = 420;
+const FLOOR_N = 96, FLOOR_SIZE = 110;
 const floorGeo = new THREE.PlaneGeometry(FLOOR_SIZE, FLOOR_SIZE, FLOOR_N, FLOOR_N); floorGeo.rotateX(-Math.PI / 2);
 const floorMat = new THREE.MeshStandardMaterial({ color: 0x8b8f8c, roughness: 1, metalness: 0 });
 const floor = new THREE.Mesh(floorGeo, floorMat); floor.frustumCulled = false; scene.add(floor);
 const hash2 = (a, b) => { const s = Math.sin(a * 127.1 + b * 311.7) * 43758.5453; return s - Math.floor(s); };
-function updateFloor(cz) {                                 // world z of its middle; depth follows the same bottom the game measures
-  const p = floorGeo.attributes.position, step = FLOOR_SIZE / FLOOR_N, z0 = Math.round(cz / step) * step;
+function updateFloor() {                                   // the same bottom the game measures, sliding under the boat as she moves over the ground
+  const p = floorGeo.attributes.position, ftPerM = FT / 0.0217;
   for (let i = 0; i < p.count; i++) {
-    const x = p.getX(i), zl = p.getZ(i), z = z0 + zl, wx = boat.wx - z / M;
-    const cx = Math.round(x / step), czi = Math.round(z / step);
-    p.setY(i, -bottomAt(wx) * M + Math.sin(x * 0.045 + z * 0.02) * 1.6 + (hash2(cx, czi) - 0.5) * 0.9);
+    const x = p.getX(i), wx = boat.wx - (p.getZ(i) + 2.0) * ftPerM;
+    p.setY(i, -bottomAt(wx) / ftPerM + 0.09 * Math.sin(wx / 37 + x * 0.45) + 0.05 * Math.sin(wx / 13 - x * 0.9) + 0.03 * Math.sin(wx / 5 + x * 2.1));
   }
-  floor.position.set(0, 0, z0); p.needsUpdate = true; floorGeo.computeVertexNormals();
+  p.needsUpdate = true; floorGeo.computeVertexNormals();
 }
+floor.position.set(-FLOOR_SIZE / 2 + 6, 0, -3.4);
 // drifting marine snow around the deep camera
 const SNOW_N = 500, snowGeo = new THREE.BufferGeometry(), snowP = new Float32Array(SNOW_N * 3);
-for (let i = 0; i < SNOW_N * 3; i++) snowP[i] = (Math.random() - 0.5) * 30;
+for (let i = 0; i < SNOW_N; i++) { snowP[i * 3] = -6 + Math.random() * 8; snowP[i * 3 + 1] = -Math.random() * 11; snowP[i * 3 + 2] = -3.4 + (Math.random() - 0.5) * 34; }
 snowGeo.setAttribute('position', new THREE.BufferAttribute(snowP, 3));
-const snow3 = new THREE.Points(snowGeo, new THREE.PointsMaterial({ color: 0xcfe0ea, size: 0.05, transparent: true, opacity: 0.7, sizeAttenuation: true })); snow3.frustumCulled = false; scene.add(snow3);
+const snow3 = new THREE.Points(snowGeo, new THREE.PointsMaterial({ color: 0xcfe0ea, size: 0.035, transparent: true, opacity: 0.55, sizeAttenuation: true })); snow3.frustumCulled = false; scene.add(snow3);
 
 // ---------- models ----------
 const loader = new GLTFLoader();
 const load = n => new Promise((res, rej) => loader.load('./' + n + '.glb', g => res(g.scene), undefined, rej));
 const boatG = new THREE.Group(); scene.add(boatG);
-const [boatM, fishM] = await Promise.all([load('boat'), load('swordfish')]);
+const BAITS = ['squid', 'belly'];
+const [boatM, fishM, ...baitM] = await Promise.all([load('boat'), load('swordfish'), ...BAITS.map(n => load(n).catch(() => null))]);
 boatM.scale.setScalar(10.4); boatM.position.set(0.05, 2.05, 0); boatM.rotation.y = -0.09;      // the generated model sits a few degrees crooked: square it up
 boatM.traverse(o => { if (o.isMesh) { o.material.roughness = 0.42; o.material.metalness = 0; } });
 boatG.add(boatM);
@@ -609,19 +619,19 @@ boatG.add(boatM);
     boatG.add(new THREE.Mesh(dg, dm));
   }
 }
-// the swordfish: recolour the toy blue to a real fish's bronze and purple-brown back, and make the body and tail swim
+// the swordfish: the body and tail swim
 const fishU = { uSwim: { value: 0 } };
 fishM.traverse(o => { if (o.isMesh) {
   o.material.roughness = 0.38; o.material.metalness = 0.1;
   o.material.onBeforeCompile = swimPatch(fishU);
 } });
+const RECOLOUR = ['#include <map_fragment>', '{ vec3 c = diffuseColor.rgb; float bl = clamp((c.b - max(c.r, c.g)) * 3., 0., 1.);',
+  '  vec3 br = vec3(c.b * .40 + c.r * .30, c.b * .25 + c.g * .25, c.b * .30 + c.r * .12); diffuseColor.rgb = mix(c * vec3(.95, .93, .9), br, bl); }'].join('\n');
 function swimPatch(uni) { return sh => {
     sh.uniforms.uSwim = uni.uSwim;
+    sh.fragmentShader = sh.fragmentShader.replace('#include <map_fragment>', RECOLOUR);
     sh.vertexShader = 'uniform float uSwim;\n' + sh.vertexShader.replace('#include <begin_vertex>',
       '#include <begin_vertex>\n float tl = clamp(.5 - position.z, 0., 1.); transformed.x += sin(position.z * 7. + uSwim) * .055 * tl * tl;');
-    sh.fragmentShader = sh.fragmentShader.replace('#include <map_fragment>',
-      '#include <map_fragment>\n { vec3 c = diffuseColor.rgb; float bl = clamp((c.b - max(c.r, c.g)) * 3., 0., 1.);' +
-      ' vec3 br = vec3(c.b * .40 + c.r * .30, c.b * .25 + c.g * .25, c.b * .30 + c.r * .12); diffuseColor.rgb = mix(c * vec3(.95, .93, .9), br, bl); }');
   }; }
 const fishPool = [];
 for (let i = 0; i < 4; i++) { const g = new THREE.Group(); g.add(fishM.clone()); g.visible = false; scene.add(g); fishPool.push(g); }
@@ -632,7 +642,7 @@ const fishMetres = wgt => 1.7 + wgt / 500 * 1.9;
 
 // ---------- rod: black butt, white blank with red wraps, roller tip. Built here so it can bend. ----------
 const ROD_N = 28, ROD_R = 8, ROD_LEN = 2.35;
-const ROD_BASE = new THREE.Vector3(+(q.get('rx') || 0.98), +(q.get('ry') || 0.84), -2.9), ROD_DIR = new THREE.Vector3(0.72, 0.68, -0.14).normalize();
+const ROD_BASE = new THREE.Vector3(1.0, 0.84, -3.75), ROD_DIR = new THREE.Vector3(0.20, 0.66, -0.72).normalize();
 const WRAPS = [0.36, 0.50, 0.63, 0.74, 0.84, 0.92];
 const rodGeo = new THREE.BufferGeometry();
 const rodPos = new Float32Array((ROD_N + 1) * ROD_R * 3), rodCol = new Float32Array((ROD_N + 1) * ROD_R * 3), rodIdx = [];
@@ -662,9 +672,9 @@ const reel = new THREE.Group(); boatG.add(reel);
   const holder = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.34, 10), guideMat);
   holder.position.copy(ROD_BASE).addScaledVector(ROD_DIR, -0.1); holder.quaternion.setFromUnitVectors(up, ROD_DIR); boatG.add(holder);
 }
-const rodC = []; for (let i = 0; i <= ROD_N; i++) rodC.push(new THREE.Vector3());
+const _zax = new THREE.Vector3(0, 0, 1); const rodC = []; for (let i = 0; i <= ROD_N; i++) rodC.push(new THREE.Vector3());
 const tipLocal = new THREE.Vector3(), tipWorld = new THREE.Vector3(), pullLocal = new THREE.Vector3(0, -1, 0);
-const _t = new THREE.Vector3(), _n1 = new THREE.Vector3(), _n2 = new THREE.Vector3(), _ref = new THREE.Vector3(0, 0, 1), _v = new THREE.Vector3();
+const _t = new THREE.Vector3(), _n1 = new THREE.Vector3(), _n2 = new THREE.Vector3(), _ref = new THREE.Vector3(1, 0, 0), _v = new THREE.Vector3();
 function updateRod(loadV) {
   const bend = Math.min(1.3, loadV) * 0.62 * ROD_LEN;
   for (let i = 0; i <= ROD_N; i++) {
@@ -685,7 +695,7 @@ function updateRod(loadV) {
   }
   rodGeo.attributes.position.needsUpdate = true; rodGeo.computeVertexNormals(); rodGeo.computeBoundingSphere();
   WRAPS.forEach((w, k) => { const i = Math.round(w * ROD_N); _t.subVectors(rodC[i + 1], rodC[i - 1]).normalize();
-    _n1.copy(pullLocal).addScaledVector(_t, -pullLocal.dot(_t)).normalize(); guides[k].position.copy(rodC[i]).addScaledVector(_n1, -0.036); /* guides ride on top of the blank, the same side as the reel */ guides[k].quaternion.setFromUnitVectors(_ref, _t); });
+    _n1.copy(pullLocal).addScaledVector(_t, -pullLocal.dot(_t)).normalize(); guides[k].position.copy(rodC[i]).addScaledVector(_n1, -0.036); /* guides ride on top of the blank, the same side as the reel */ guides[k].quaternion.setFromUnitVectors(_zax, _t); });
   tipLocal.copy(rodC[ROD_N]); tipRoller.position.copy(tipLocal).addScaledVector(_n1, -0.014); tipRoller.rotation.set(0, 0, Math.PI / 2);
 }
 
@@ -694,8 +704,8 @@ const lineMat = new THREE.LineBasicMaterial({ color: 0xf2e36a });
 const lineGeo = new THREE.BufferGeometry(); lineGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array((WRAPS.length + 3) * 3), 3));
 const line = new THREE.Line(lineGeo, lineMat); line.frustumCulled = false; scene.add(line);
 const rigG = new THREE.Group(); scene.add(rigG);
-const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.07, 12, 8), new THREE.MeshBasicMaterial({ color: 0xaaffe6 })); lamp.position.y = 0.9; rigG.add(lamp);
-const weight = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.09, 0.42, 10), new THREE.MeshStandardMaterial({ color: 0x6f7377, roughness: 0.8, metalness: 0.4 })); weight.position.set(0.25, -1.3, 0); rigG.add(weight);
+const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.07, 12, 8), new THREE.MeshBasicMaterial({ color: 0xaaffe6 })); lamp.position.y = 0.28; rigG.add(lamp);
+const weight = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.09, 0.42, 10), new THREE.MeshStandardMaterial({ color: 0x6f7377, roughness: 0.8, metalness: 0.4 })); weight.position.set(0, -0.62, 0.06); rigG.add(weight);
 const leaderGeo = new THREE.BufferGeometry(); leaderGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(12), 3));
 const leader = new THREE.Line(leaderGeo, new THREE.LineBasicMaterial({ color: 0xd8e4ea, transparent: true, opacity: 0.7 })); leader.frustumCulled = false; rigG.add(leader);
 const bait = new THREE.Group(); rigG.add(bait);
@@ -704,46 +714,66 @@ const bait = new THREE.Group(); rigG.add(bait);
   for (let i = 0; i < 6; i++) { const a = i / 6 * Math.PI * 2; const tn = new THREE.Mesh(new THREE.ConeGeometry(0.014, 0.3, 5), sq); tn.rotation.x = Math.PI / 2; tn.position.set(Math.cos(a) * 0.04, Math.sin(a) * 0.04, -0.24); bait.add(tn); }
   const skirt = new THREE.Mesh(new THREE.ConeGeometry(0.1, 0.2, 10, 1, true), new THREE.MeshStandardMaterial({ color: 0xc23a5a, roughness: 0.6, side: THREE.DoubleSide })); skirt.rotation.x = -Math.PI / 2; skirt.position.z = 0.36; bait.add(skirt);
 }
+const baitKinds = [];
+baitM.forEach((m, i) => { if (!m) return; const g = new THREE.Group(); if (BAITS[i] === 'squid') { m.scale.setScalar(0.62); m.rotation.x = Math.PI / 2; } else { m.scale.setScalar(0.55); m.rotation.y = +(q.get('bry') || -Math.PI / 2); } g.add(m); g.visible = false; bait.add(g); baitKinds.push(g); });
+if (baitKinds.length) for (const c of bait.children) if (!baitKinds.includes(c)) c.visible = false;      // the stand-in bait built from simple shapes is only a fallback
+let baitRig = null;
 const dartZone = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 3.4), new THREE.MeshBasicMaterial({ color: 0xffd45a, transparent: true, opacity: 0.28, depthWrite: false, side: THREE.DoubleSide }));
 dartZone.rotation.x = -Math.PI / 2; dartZone.visible = false; scene.add(dartZone);
-const zoneBox = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(1.4, 2.6, 1)), new THREE.LineBasicMaterial({ color: 0xffd45a })); zoneBox.visible = false; scene.add(zoneBox);
+const zoneBox = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(1.4, 2.2, 1)), new THREE.LineBasicMaterial({ color: 0xffd45a })); zoneBox.visible = false; scene.add(zoneBox);
 const FIGHT_X = 3.5, ZS_A = (115 - 95) / 190, ZS_B = (220 - 95) / 190;       // the dart zone, as a stretch of water alongside the cockpit
 
-// ---------- cameras and layout ----------
-let yaw = 2.86, pitch = 0.22, radius = TOUCH ? 12 : 13.5, drag = null;
-cv.addEventListener('pointerdown', e => { drag = { x: e.clientX, y: e.clientY }; });
-addEventListener('pointerup', () => { drag = null; });
-addEventListener('pointermove', e => { if (!drag) return; yaw -= (e.clientX - drag.x) * 0.005; pitch = clamp(pitch + (e.clientY - drag.y) * 0.004, 0.03, 1.2); drag = { x: e.clientX, y: e.clientY }; });
-addEventListener('wheel', e => { radius = clamp(radius * (1 + Math.sign(e.deltaY) * 0.08), 6, 60); }, { passive: true });
-let VW = innerWidth, VH = innerHeight, insetTip = null, insetDeep = null, bigDeep = false;
+// ---------- camera and layout: the flat game's picture, built in 3D ----------
+// One picture: the boat on top of the water, and under her a cut through the sea down to the bottom,
+// squeezed the same way the flat game squeezed it (1,600 ft of water in the height of the screen).
+const PX = 0.0217, SV = PX / FT;                           // metres per flat-game pixel, and per foot of water
+const CAM_D = 40, CAM_Y = 2.4, VIEW_TOP = 5.3, VIEW_Z = -3.4, CUT_X = 2.6;
+let VW = innerWidth, VH = innerHeight, insetTip = null, waterRow = 0;
 function layout() {
   VW = innerWidth; VH = innerHeight; renderer.setSize(VW, VH, false);
-  const w = Math.round(clamp(VW * 0.27, 150, 420)), h = Math.round(w * 0.62), top = 12, right = 12;
-  insetTip = { x: VW - right - w, y: top, w, h }; const w2 = bigDeep ? Math.round(clamp(VW * 0.46, 240, 760)) : w, h2 = Math.round(w2 * (bigDeep ? 0.5 : 0.62));
-  insetDeep = bigDeep ? { x: 12, y: Math.min(Math.max(176, Math.round(VH * 0.26)), VH - h2 - 120), w: w2, h: h2 } : { x: VW - right - w2, y: top + h + 10, w: w2, h: h2 };
-  for (const [el, r] of [[$('in-tip'), insetTip], [$('in-deep'), insetDeep]]) { el.style.left = r.x + 'px'; el.style.top = r.y + 'px'; el.style.width = r.w + 'px'; el.style.height = r.h + 'px'; }
-  camera.aspect = VW / VH; camera.updateProjectionMatrix();
-  tipCam.aspect = w / h; deepCam.aspect = w2 / h2; tipCam.updateProjectionMatrix(); deepCam.updateProjectionMatrix();
+  const w = Math.round(clamp(VW * 0.24, 140, 380)), h = Math.round(w * 0.62), top = 12, right = 12;
+  insetTip = { x: VW - right - w, y: top, w, h };
+  const el = $('in-tip'); el.style.left = insetTip.x + 'px'; el.style.top = insetTip.y + 'px'; el.style.width = w + 'px'; el.style.height = h + 'px';
+  if (TOUCH) { $('helm').style.top = (top + h + 8) + 'px'; }
+  tipCam.aspect = w / h; tipCam.updateProjectionMatrix();
+  // a tall picture seen square-on: the lens is shifted down, the way a view camera's is, so the horizon sits near the top
+  const aspect = VW / VH, hvis = Math.max(16.7, 19.5 / aspect), k = 1.7;
+  camera.aspect = aspect; camera.fov = 2 * Math.atan(hvis * k / 2 / CAM_D) * 180 / Math.PI;
+  const horizonRow = (VIEW_TOP - CAM_Y) / hvis * VH;
+  camera.setViewOffset(VW * k, VH * k, VW * (k - 1) / 2, VH * k / 2 - horizonRow, VW, VH);
+  camera.position.set(CAM_D, CAM_Y, VIEW_Z); camera.up.set(0, 1, 0); camera.lookAt(0, CAM_Y, VIEW_Z); camera.updateMatrixWorld(true);
+  waterRow = Math.round((1 - _v.set(CUT_X, 0, VIEW_Z).project(camera).y) / 2 * VH);
+  $('surf').style.top = waterRow + 'px';
 }
 addEventListener('resize', layout); layout();
+const fsBtn = $('b-full');
+if (document.fullscreenEnabled && document.documentElement.requestFullscreen) {
+  fsBtn.hidden = false;
+  fsBtn.addEventListener('click', () => {
+    if (document.fullscreenElement) { document.exitFullscreen(); return; }
+    const p = document.documentElement.requestFullscreen(); if (p && p.catch) p.catch(() => {});
+    try { const o = screen.orientation.lock('landscape'); if (o && o.catch) o.catch(() => {}); } catch (e) {}
+  });
+}
 
-// ---------- readouts ----------
+// ---------- readouts: where the flat game had them ----------
 const row = (l, v, c) => '<span>' + l + '</span><b' + (c ? ' class="' + c + '"' : '') + '>' + v + '</b>';
 let hudT = -1, lastCard = '';
 function updateHud() {
   if (t - hudT < 0.15 && state !== 'title') return; hudT = t;
-  const sog = boat.v / KT, g = GEAR[boat.notch + 2];
-  let h = row('TIME', clockText()) + row('BAITS', baits) + row('FISH', score.count + ' / ' + score.hooked + (score.lbs ? ' &middot; ' + score.lbs + ' LB' : '')) +
-    row('LEVER', g.label + ' ' + Math.round(boat.rpm) + ' RPM', boat.notch === 0 ? 'warn' : 'go') +
-    row('OVER GROUND', Math.abs(sog).toFixed(1) + ' KT ' + (Math.abs(sog) < 0.05 ? '' : sog > 0 ? 'ASTERN' : 'AHEAD'), Math.abs(sog) < 0.35 ? 'go' : '') +
-    row('CURRENT', (boat.cur / KT).toFixed(1) + ' KT');
-  if (state === 'fishing' && rig) {
+  const sog = boat.v / KT, g = GEAR[boat.notch + 2], playing = state !== 'title';
+  $('status').innerHTML = row('TIME', clockText()) + row('BAITS', baits) + row('FISH', score.count + ' / ' + score.hooked + (score.lbs ? ' &middot; ' + score.lbs + ' LB' : ''));
+  $('helm').innerHTML = row('LEVER', g.label, boat.notch === 0 ? 'warn' : 'go') + row('ENGINES', Math.round(boat.rpm) + ' RPM') +
+    row('OVER GROUND', Math.abs(sog).toFixed(1) + ' KT ' + (Math.abs(sog) < 0.05 ? '' : sog > 0 ? '&#9658;' : '&#9668;'), Math.abs(sog) < 0.35 ? 'go' : '') +
+    row('CURRENT', (boat.cur / KT).toFixed(1) + ' KT &#9658;');
+  const showRig = state === 'fishing' && rig;
+  if (showRig) {
     const off = Math.round(rig.bot - rig.d);
-    h += row('LINE OUT', Math.round(rig.L) + ' FT') + row('DEPTH', Math.round(bottomAt(boat.wx)) + ' FT') +
+    $('rigp').innerHTML = row('LINE OUT', Math.round(rig.L) + ' FT') + row('DEPTH', Math.round(bottomAt(boat.wx)) + ' FT') +
       row('OFF BOTTOM', rig.onBottom ? 'ON BOTTOM' : rig.L < 200 ? 'NEAR TOP' : off + ' FT', rig.onBottom ? 'bad' : (off >= 40 && off <= 100 && rig.L >= 200) ? 'go' : '') +
       (rig.tangle > 0.1 ? row('LEADER WRAP', Math.round(clamp(rig.tangle, 0, 1) * 100) + '%', rig.tangle > 0.7 ? 'bad' : 'warn') : row('LINE ANGLE', Math.round(rig.angle) + '&deg;', rig.angle > 30 ? 'bad' : ''));
   }
-  $('status').innerHTML = h; $('status').hidden = state === 'title';
+  $('status').hidden = $('helm').hidden = !playing; $('rigp').hidden = !showRig;
   const showMsg = t < msgUntil && (state === 'fishing' || state === 'fight');
   $('msg').hidden = !showMsg; if (showMsg) $('msg').textContent = msg;
   $('flash').hidden = !(flash > 0); if (flash > 0) { $('flash').textContent = flashText; $('flash').style.opacity = Math.min(1, flash); }
@@ -767,26 +797,17 @@ function updateHud() {
     (score.lbs >= best && score.lbs > 0 ? 'New best day.' : 'Best day so far: ' + best + ' lb.') + '</p><p><b>' + go + ' to fish again</b></p>';
   if (card !== lastCard) { lastCard = card; $('card').innerHTML = card; } $('card').hidden = !card;
   $('card').classList.toggle('low', state === 'result' && result.landed);
-  $('in-tip').hidden = $('in-deep').hidden = state === 'title';
+  $('in-tip').hidden = !playing;
 }
 
 // ---------- one frame ----------
-const rigPos = new THREE.Vector3(), fishPos = new THREE.Vector3(3.5, -3, -6), fishShown = new THREE.Vector3(), _q = new THREE.Quaternion(), _m = new THREE.Vector3();
-let fishYaw = 0, fishPitch = 0, fishYawS = 0, fishPitchS = 0, deepDepthFt = 0;
-function setAir() { skyMat.uniforms.uUnder.value = 0; scene.fog.color.set(0xb9d2e8); scene.fog.density = 0.0011; hemi.intensity = 1.25; hemi.color.set(0xbfd8ff); hemi.groundColor.set(0x12324a); sun.intensity = 3.2; sun.color.set(0xfff2dc); camLight.intensity = 0; }
-const _deepCol = new THREE.Color();
-function setWater(depthM) {                                 // light and colour die away with depth
-  const k = Math.exp(-depthM / 55);
-  _deepCol.setRGB(0.004 + 0.016 * k, 0.012 + 0.15 * k, 0.03 + 0.27 * k);
-  skyMat.uniforms.uUnder.value = 1; skyMat.uniforms.uDeep.value.copy(_deepCol); waterMat.uniforms.uDeep.value.copy(_deepCol);
-  scene.fog.color.copy(_deepCol); scene.fog.density = 0.022 + 0.02 * (1 - k);
-  hemi.intensity = 0.05 + 2.0 * k; hemi.color.set(0x8fd0ff); hemi.groundColor.set(0x04253f); sun.intensity = 2.2 * k; sun.color.set(0xa8e0ff); camLight.intensity = 14 * (1 - k) + 2;
-}
-function view(cam, r) {
-  if (r) { renderer.setViewport(r.x, VH - r.y - r.h, r.w, r.h); renderer.setScissor(r.x, VH - r.y - r.h, r.w, r.h); }
-  else { renderer.setViewport(0, 0, VW, VH); renderer.setScissor(0, 0, VW, VH); }
-  waterNear.position.set(Math.round(cam.position.x / 4) * 4, 0, Math.round(cam.position.z / 4) * 4); waterFar.position.set(waterNear.position.x, -0.05, waterNear.position.z);
-  renderer.render(scene, cam);
+const rigPos = new THREE.Vector3(), fishPos = new THREE.Vector3(1.5, -3, -8), fishShown = new THREE.Vector3(), _q = new THREE.Quaternion(), _m = new THREE.Vector3();
+let fishYawS = Math.PI, fishPitchS = 0;
+const FISH_K = 0.62;                                        // fish are drawn a little under life size so they sit right in the squeezed water
+function setAir() { skyMat.uniforms.uUnder.value = 0; scene.fog.color.set(0xb9d2e8); scene.fog.density = 0.0011; hemi.intensity = 1.25; hemi.color.set(0xbfd8ff); hemi.groundColor.set(0x12324a); sun.intensity = 3.2; sun.color.set(0xfff2dc); }
+function setCut() {                                         // the cut through the sea: bright under the surface, dark toward the bottom
+  skyMat.uniforms.uUnder.value = 2; scene.fog.color.setRGB(0.012, 0.085, 0.19); scene.fog.density = 0.016;
+  hemi.intensity = 1.7; hemi.color.set(0x9fd8ff); hemi.groundColor.set(0x0a3350); sun.intensity = 1.5; sun.color.set(0xbfe8ff);
 }
 function render() {
   const tt = t;
@@ -797,45 +818,38 @@ function render() {
   boatG.position.set(0, (hb + hs + hp + hq) / 4 * 0.85, 0);
   boatG.rotation.set(-Math.atan2(hb - hs, 8.4) * 0.8 - clamp(boat.stw / KT, 0, 6) * 0.006, 0, Math.atan2(hq - hp, 2.8) * 0.6);
   boatG.updateMatrixWorld(true);
+  boatG.localToWorld(tipWorld.copy(tipLocal));
 
   const fighting = state === 'fight' && F, fishing = state === 'fishing' && rig, loadV = state === 'title' ? 0.3 : tipLoad();
+  const zoneZ0 = tipWorld.z - (ZONE_A - TIPX) * PX, zoneZ1 = tipWorld.z - (ZONE_B - TIPX) * PX;
   // where the far end of the line is
   let endKnown = false;
   if (fighting) {
-    const f = F.f, len = fishMetres(f.wgt);
-    if (F.mode === 'boat') {
-      const s = (F.x - TIPX - 95) / 190, dir = Math.cos(F.boatT * (1.3 + f.wgt / 900)) >= 0 ? 1 : -1;
-      _m.set(FIGHT_X, -1.15 - 0.12 * len, -2.6 + s * 6);                 // alongside, under the surface: watched from the side fishYaw = dir > 0 ? 0 : Math.PI; fishPitch = 0;
-    } else {
-      const out = F.mode === 'run' ? 16 : F.mode === 'rise' ? 6 : 9;
-      let y = -Math.max(1.2, F.depth * M), pt = F.mode === 'run' ? 0.55 : F.mode === 'rise' ? -0.75 : 0;
-      if (F.mode === 'jump') { const u = clamp(F.jumpT / 1.3, 0, 1); y = -0.8 + Math.sin(u * Math.PI) * 3.4; pt = -1.0 + u * 2.0; }
-      _m.set(FIGHT_X + out * 0.8, y, -2.6 + Math.sin(F.time * 0.7) * 2.5); fishYaw = Math.PI / 2 * (F.mode === 'rise' ? -1 : 1); fishPitch = pt;
-    }
+    const f = F.f, len = fishMetres(f.wgt) * FISH_K;
+    _m.set(tipWorld.x, -(F.y - SURF) * PX, tipWorld.z - (F.x - TIPX) * PX);          // exactly where the flat game put him
     // he always points the way he is actually moving: heading and nose angle come from his own motion
     const px = fishPos.x, py = fishPos.y, pz = fishPos.z;
-    fishPos.lerp(_m, Math.min(1, (F.mode === 'jump' ? 9 : 3) * lastDt));
-    const vx = (fishPos.x - px) / lastDt, vy = (fishPos.y - py) / lastDt, vz = (fishPos.z - pz) / lastDt, vh = Math.hypot(vx, vz);
-    if (vh > 0.12) { let d = Math.atan2(vx, vz) - fishYawS; d = Math.atan2(Math.sin(d), Math.cos(d)); fishYawS += d * Math.min(1, 5 * lastDt); }
-    const pt = F.mode === 'jump' ? fishPitch : clamp(-Math.atan2(vy, Math.max(vh, 0.6)), -1.0, 1.0);
+    fishPos.lerp(_m, Math.min(1, 10 * lastDt));
+    const vy = (fishPos.y - py) / lastDt, vz = (fishPos.z - pz) / lastDt, vh = Math.abs(vz);
+    if (vh > 0.10) { let d = (vz > 0 ? 0 : Math.PI) - fishYawS; d = Math.atan2(Math.sin(d), Math.cos(d)); fishYawS += d * Math.min(1, 5 * lastDt); }
+    const pt = clamp(-Math.atan2(vy, Math.max(vh, 0.5)), -1.1, 1.1);
     fishPitchS += (pt - fishPitchS) * Math.min(1, (F.mode === 'jump' ? 10 : 4) * lastDt);
     const g = fishPool[3]; g.visible = true; g.scale.setScalar(len); g.position.copy(fishPos); g.rotation.set(fishPitchS, fishYawS, 0, 'YXZ');
     fishShown.copy(fishPos).add(_v.set(0, 0, 0.45 * len).applyEuler(g.rotation));       // the hook is at his mouth
     rigPos.copy(fishShown); endKnown = true;
   } else fishPool[3].visible = false;
 
-  boatG.localToWorld(tipWorld.copy(tipLocal));
-  if (fishing && !endKnown) { rigPos.set(tipWorld.x, -rig.d * M, tipWorld.z - rig.off * M); endKnown = rig.rigT <= 0; }
+  if (fishing && !endKnown) { rigPos.set(tipWorld.x, -rig.d * SV, tipWorld.z - rig.off * SV); endKnown = rig.rigT <= 0; }
   if (!endKnown) rigPos.set(tipWorld.x, tipWorld.y - 1.2, tipWorld.z);
   // which way the line pulls the tip, in the boat's own frame
   _v.subVectors(rigPos, tipWorld); if (_v.lengthSq() < 0.01) _v.set(0, -1, 0); _v.normalize();
   pullLocal.copy(_v).applyQuaternion(_q.copy(boatG.quaternion).invert());
   updateRod(loadV);
   boatG.localToWorld(tipWorld.copy(tipLocal));
-  // line: reel, tip, far end, with a belly in it when it is slack
+  // line: off the spool, through each guide, over the roller, and down
   const lp = lineGeo.attributes.position; let li = 0;
   const put = v => { boatG.localToWorld(_m.copy(v)); lp.setXYZ(li++, _m.x, _m.y, _m.z); };
-  put(reel.position); for (const gd of guides) put(gd.position); put(tipRoller.position);          // off the spool, through each guide, over the roller
+  put(reel.position); for (const gd of guides) put(gd.position); put(tipRoller.position);
   lp.setXYZ(li, rigPos.x, rigPos.y, rigPos.z); lp.needsUpdate = true;
 
   // the rig down there
@@ -843,62 +857,59 @@ function render() {
   rigG.visible = rigUp; strobe.intensity = 0;
   if (rigUp) {
     rigG.position.copy(rigPos); bait.visible = rig.bait; weight.visible = !rig.lost;
-    const sway = Math.sin(tt * 0.8) * 0.25, by = rig.tangled ? 0.5 : -2.4;
-    bait.position.set(rig.tangled ? 0.1 : 0.9 + sway, by, 0.4); bait.rotation.set(rig.tangled ? 1.2 : 0.25, 0.6, 0);
-    const lg = leaderGeo.attributes.position; lg.setXYZ(0, 0, 0, 0); lg.setXYZ(1, 0.25, -1.1, 0); lg.setXYZ(2, 0, 0, 0); lg.setXYZ(3, bait.position.x, by, 0.4 + 0.3); lg.needsUpdate = true;
+    if (baitRig !== rig && baitKinds.length) { baitRig = rig; const pick = q.has('bait') ? +q.get('bait') : Math.floor(Math.random() * baitKinds.length); baitKinds.forEach((g, i) => { g.visible = i === pick; }); }
+    const sway = Math.sin(tt * 0.8) * 0.08;
+    bait.position.set(0, rig.tangled ? 0.25 : -0.34, rig.tangled ? 0.05 : -0.42 + sway); bait.rotation.set(rig.tangled ? 1.2 : 0.2, 0, 0);   // the bait trails down-current of the weight
+    const lg = leaderGeo.attributes.position; lg.setXYZ(0, 0, 0, 0); lg.setXYZ(1, 0, -0.42, 0.06); lg.setXYZ(2, 0, 0, 0); lg.setXYZ(3, 0, bait.position.y + 0.04, bait.position.z + 0.2); lg.needsUpdate = true;
     const blink = (tt * 1.6) % 1 < 0.55 ? 1 : 0.25; lamp.material.color.setRGB(0.65 * blink, 1.0 * blink, 0.9 * blink);
-    strobe.position.copy(rigPos).y += 0.9; strobe.intensity = 260 * blink * clamp((-rigPos.y - 12) / 30, 0, 1);
+    strobe.position.copy(rigPos); strobe.position.y += 0.3; strobe.intensity = 16 * blink * clamp((-rigPos.y - 2) / 2, 0, 1);
   }
   // the fish that are out there
   fishes.forEach((f, i) => {
     const g = fishPool[i]; if (!g || !fishing) { if (g) g.visible = false; return; }
-    const len = fishMetres(f.wgt), engaged = rig.bite && rig.bite.fish === f;
-    _m.set(tipWorld.x + 2.5 + Math.sin(f.phase) * 3, -fishDepth(f) * M + Math.sin(tt * 0.9 + f.phase) * 0.3, tipWorld.z - (f.wx - boat.wx) * M);
+    const len = fishMetres(f.wgt) * FISH_K, engaged = rig.bite && rig.bite.fish === f;
+    _m.set(tipWorld.x - 0.9 - Math.abs(Math.sin(f.phase)) * 1.6, -fishDepth(f) * SV + Math.sin(tt * 0.9 + f.phase) * 0.06, tipWorld.z - (f.wx - boat.wx) * SV);
     let yw = f.dir > 0 ? Math.PI : 0;
-    if (engaged) { const a = tt * 0.9 + f.phase; _m.set(rigPos.x + bait.position.x + Math.cos(a) * (1.6 + len * 0.45), rigPos.y - 2.3 + Math.sin(tt * 1.7) * 0.25, rigPos.z + 0.5 + Math.sin(a) * (1.6 + len * 0.45)); yw = -a; }
-    if (!g.visible || g.position.distanceTo(_m) > 40) g.position.copy(_m); else g.position.lerp(_m, Math.min(1, 2.5 * lastDt));
+    if (engaged) { const a = tt * 0.9 + f.phase, r = 0.5 + len * 0.42; _m.set(rigPos.x - 0.5 + Math.cos(a) * r * 0.5, rigPos.y - 0.3 + Math.sin(tt * 1.7) * 0.06, rigPos.z - 0.4 + Math.sin(a) * r); yw = -a; }
+    if (!g.visible || g.position.distanceTo(_m) > 12) g.position.copy(_m); else g.position.lerp(_m, Math.min(1, 2.5 * lastDt));
     let dy = yw - (g.userData.yaw ?? yw); dy = Math.atan2(Math.sin(dy), Math.cos(dy)); g.userData.yaw = (g.userData.yaw ?? yw) + dy * Math.min(1, 3 * lastDt);
-    g.visible = true; g.scale.setScalar(len); g.rotation.set(0, g.userData.yaw, 0);
+    g.visible = Math.abs(_m.z - VIEW_Z) < 22; g.scale.setScalar(len); g.rotation.set(0, g.userData.yaw, 0);
   });
   for (let i = fishes.length; i < 3; i++) fishPool[i].visible = false;
   if (!fishing) for (let i = 0; i < 3; i++) fishPool[i].visible = false;
   if (state === 'result' && result && result.landed && deckFish.userData.w !== result.wgt + ':' + score.count) {
-    const len = fishMetres(result.wgt); deckFish.userData.w = result.wgt + ':' + score.count;
-    deckFish.scale.setScalar(len); deckFish.rotation.set(0, 0.30, Math.PI / 2, 'YXZ'); deckFish.position.set(-0.15, 0.37 + 0.085 * len, -2.75 - Math.max(0, len - 2.4) * 0.35);
+    const len = fishMetres(result.wgt) * 0.8; deckFish.userData.w = result.wgt + ':' + score.count;       // laid along the gunwale where you can see him
+    deckFish.scale.setScalar(len); deckFish.rotation.set(0, 0, 0); deckFish.position.set(1.22, 0.80 + 0.21 * len, -1.1);
   }
   deckFish.visible = score.count > 0 && !!deckFish.userData.w && state !== 'title';
   dartZone.visible = !!(fighting && F.mode === 'boat');
-  if (dartZone.visible) { const zc = -2.6 + (ZS_A + ZS_B) / 2 * 6; dartZone.position.set(FIGHT_X, waveH(FIGHT_X, zc, tt) + 0.12, zc); dartZone.scale.set(1, (ZS_B - ZS_A) * 6 / 3.4, 1); dartZone.material.opacity = F.x >= ZONE_A && F.x <= ZONE_B ? 0.5 : 0.22;
-    zoneBox.position.set(FIGHT_X, -1.4, zc); zoneBox.scale.set(1, 1, (ZS_B - ZS_A) * 6); zoneBox.material.color.set(F.x >= ZONE_A && F.x <= ZONE_B ? 0x8fffa8 : 0xffd45a); }
+  if (dartZone.visible) {
+    const zc = (zoneZ0 + zoneZ1) / 2, zl = Math.abs(zoneZ1 - zoneZ0), inZ = F.x >= ZONE_A && F.x <= ZONE_B;
+    dartZone.position.set(tipWorld.x, 0.1, zc); dartZone.scale.set(1, zl / 3.4, 1); dartZone.material.opacity = inZ ? 0.5 : 0.22;
+    zoneBox.position.set(tipWorld.x, -1.05, zc); zoneBox.scale.set(1, 0.72, zl); zoneBox.material.color.set(inZ ? 0x8fffa8 : 0xffd45a);
+  }
   zoneBox.visible = dartZone.visible;
 
-  // ---- main view: off the quarter, looking across the cockpit at the rod ----
   renderer.setScissorTest(true);
-  const ty = state === 'title' ? yaw + tt * 0.08 : yaw;
-  camera.position.set(0.9 + Math.sin(ty) * Math.cos(pitch) * radius, 1.3 + Math.sin(pitch) * radius, -1.6 + Math.cos(ty) * Math.cos(pitch) * radius); camera.lookAt(0.9, 1.5, -1.6);
-  setAir(); floor.visible = false; snow3.visible = false;
-  view(camera, null);
+  // ---- above the water ----
+  setAir(); floor.visible = false; snow3.visible = false; waterNear.visible = waterFar.visible = true;
+  renderer.setViewport(0, 0, VW, VH); renderer.setScissor(0, 0, VW, VH);
+  waterNear.position.set(0, 0, 0); waterFar.position.set(0, -0.05, 0);
+  renderer.render(scene, camera);
+  // ---- under the water: the same camera, with the sea cut away in front of the boat ----
+  setCut(); floor.visible = true; snow3.visible = true; waterNear.visible = waterFar.visible = false; updateFloor();
+  const sp = snowGeo.attributes.position;
+  for (let i = 0; i < SNOW_N; i++) { let y = sp.getY(i) - lastDt * 0.05; if (y < -11) y += 11; sp.setY(i, y); } sp.needsUpdate = true;
+  renderer.setScissor(0, 0, VW, Math.max(0, VH - waterRow));
+  renderer.render(scene, camera);
+  waterNear.visible = waterFar.visible = true;
   if (state !== 'title') {
     // ---- rod tip: from the cockpit, the tip against the horizon ----
-    boatG.localToWorld(tipCam.position.set(0.55, 1.75, -3.9)); tipCam.up.set(0, 1, 0); tipCam.lookAt(_m.copy(tipWorld).add(_v.set(0, -0.12, 0)));
-    view(tipCam, insetTip);
-    // ---- under water: the bait near the bottom, or the fish on the line ----
-    const target = fighting ? fishPos : rigPos, jumpy = fighting && F.mode === 'jump', atBoat = fighting && F.mode === 'boat';
-    if (atBoat !== bigDeep) { bigDeep = atBoat; layout(); }
-    const depthM = Math.max(0, -target.y); deepDepthFt = depthM / M;
-    floor.visible = true; snow3.visible = true; updateFloor(target.z);
-    const floorY = -bottomAt(boat.wx - target.z / M) * M;
-    if (fighting) { const r = 6 + fishMetres(F.f.wgt) * 1.6; deepCam.position.set(target.x + r * 0.75, jumpy ? 1.6 : target.y + 0.8, target.z + r * 0.66); }
-    else deepCam.position.set(target.x + 4.6, target.y - 0.6, target.z + 4.2);
-    if (!jumpy) deepCam.position.y = Math.max(deepCam.position.y, floorY + 1.2);
-    deepCam.lookAt(target.x + (fighting ? 0 : 0.4), target.y - (fighting ? 0 : 1.3), target.z);
-    if (atBoat) { const zc = -2.6 + (ZS_A + ZS_B) / 2 * 6; deepCam.position.set(FIGHT_X + 4.6 + fishMetres(F.f.wgt) * 0.8, target.y + 0.4, zc - 0.6); deepCam.lookAt(FIGHT_X, target.y + 0.15, zc - 0.6); }   // broadside: he swims across the picture, through the zone
-    if (deepCam.position.y > 0) setAir(); else setWater(-deepCam.position.y);
-    camLight.position.copy(deepCam.position);
-    const sp = snowGeo.attributes.position;
-    for (let i = 0; i < SNOW_N; i++) { let y = sp.getY(i) - lastDt * 0.12; if (y < -15) y += 30; sp.setY(i, y); } sp.needsUpdate = true; snow3.position.copy(deepCam.position);
-    view(deepCam, insetDeep);
-    $('deep-l').textContent = (fighting ? 'FISH CAMERA' : rigUp ? 'BAIT CAMERA' : 'RIGGING') + ' · ' + Math.round(deepDepthFt) + ' FT';
+    setAir(); floor.visible = false; snow3.visible = false;
+    boatG.localToWorld(tipCam.position.set(0.15, 1.85, -3.3)); tipCam.up.set(0, 1, 0); tipCam.lookAt(_m.copy(tipWorld).add(_v.set(0, -0.12, 0)));
+    const r = insetTip; renderer.setViewport(r.x, VH - r.y - r.h, r.w, r.h); renderer.setScissor(r.x, VH - r.y - r.h, r.w, r.h);
+    waterNear.position.set(Math.round(tipCam.position.x / 4) * 4, 0, Math.round(tipCam.position.z / 4) * 4);
+    renderer.render(scene, tipCam);
   }
   renderer.setScissorTest(false);
   updateHud();
