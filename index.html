@@ -704,20 +704,40 @@ const rod = new THREE.Mesh(rodGeo, new THREE.MeshStandardMaterial({ vertexColors
 const guideMat = new THREE.MeshStandardMaterial({ color: 0xb9c0c6, roughness: 0.3, metalness: 0.85 });
 const guides = WRAPS.map(() => { const m = new THREE.Mesh(new THREE.TorusGeometry(0.022, 0.006, 6, 12), guideMat); boatG.add(m); return m; });
 const tipRoller = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.026, 12), guideMat); boatG.add(tipRoller);
-// the electric reel: grey body, bright side plates, a spool of yellow braid, the motor on the side
+/* the electric reel, after the owner's own: black spoked flange on the left, dark green braid, silver gear housing with the crank and star drag on the right,
+   the grey control box facing the angler (counter and red / black / blue / red buttons), the motor under it, the level wind over the spool */
 const reel = new THREE.Group(); boatG.add(reel);
-{ const body = new THREE.MeshStandardMaterial({ color: 0x23282d, roughness: 0.45, metalness: 0.5 }), plate = new THREE.MeshStandardMaterial({ color: 0xc8ced3, roughness: 0.25, metalness: 0.9 }),
-        braid = new THREE.MeshStandardMaterial({ color: 0x2f5a3c, roughness: 0.85 });
-  const cyl = (r, h, m, x) => { const o = new THREE.Mesh(new THREE.CylinderGeometry(r, r, h, 20), m); o.rotation.z = Math.PI / 2; o.position.x = x || 0; reel.add(o); return o; };
-  cyl(0.092, 0.02, body, -0.075); cyl(0.092, 0.02, body, 0.075); cyl(0.062, 0.13, braid, 0); cyl(0.09, 0.012, body, -0.088); cyl(0.09, 0.012, body, 0.088);
-  const grey = new THREE.MeshStandardMaterial({ color: 0x9a9fa3, roughness: 0.5, metalness: 0.35 });
-  const motor = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.13, 0.18), grey); motor.position.set(0.16, 0.0, 0.01); reel.add(motor);
-  const lcd = new THREE.Mesh(new THREE.BoxGeometry(0.004, 0.035, 0.07), new THREE.MeshStandardMaterial({ color: 0x9fb39a, roughness: 0.3, emissive: 0x39453a, emissiveIntensity: 0.6 })); lcd.position.set(0.227, 0.03, 0.01); reel.add(lcd);
-  [0xd4232b, 0x15181b, 0x2a8fd6, 0xd4232b].forEach((c, i) => { const b = new THREE.Mesh(new THREE.CylinderGeometry(0.011, 0.011, 0.008, 12), new THREE.MeshStandardMaterial({ color: c, roughness: 0.4 })); b.rotation.z = Math.PI / 2; b.position.set(0.228, -0.025, -0.045 + i * 0.037); reel.add(b); });
-  const foot = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.03, 0.06), body); foot.position.set(0, -0.085, 0); reel.add(foot);
+const lcdC = document.createElement('canvas'); lcdC.width = 160; lcdC.height = 72; const lcdX = lcdC.getContext('2d'); const lcdTex = new THREE.CanvasTexture(lcdC); lcdTex.colorSpace = THREE.SRGBColorSpace; let lcdShown = null;
+function setLcd(n) { if (n === lcdShown) return; lcdShown = n; lcdX.fillStyle = '#aebba6'; lcdX.fillRect(0, 0, 160, 72); lcdX.fillStyle = '#1c241c'; lcdX.font = 'bold 56px monospace'; lcdX.textAlign = 'right'; lcdX.textBaseline = 'middle'; lcdX.fillText(String(n), 152, 40); lcdTex.needsUpdate = true; }
+setLcd(0);
+{ const M = (c, r, m) => new THREE.MeshStandardMaterial({ color: c, roughness: r, metalness: m });
+  const silver = M(0xb4b9bd, 0.42, 0.7), black = M(0x16191c, 0.55, 0.3), steel = M(0xd5dade, 0.22, 0.9), boxGrey = M(0x8d9296, 0.6, 0.25), braid = M(0x2f5a3c, 0.9, 0), dark = M(0x2a2d30, 0.6, 0.3);
+  const add = (o, p) => { (p || reel).add(o); return o; };
+  const cyl = (r, h, m, x, y, z, seg) => { const o = new THREE.Mesh(new THREE.CylinderGeometry(r, r, h, seg || 28), m); o.rotation.z = Math.PI / 2; o.position.set(x || 0, y || 0, z || 0); return add(o); };
+  const box = (w, h, d, m, x, y, z, p) => { const o = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); o.position.set(x, y, z); return add(o, p); };
+  cyl(0.074, 0.15, braid, -0.02);                                                        /* the spool of braid */
+  { const ring = add(new THREE.Mesh(new THREE.TorusGeometry(0.09, 0.012, 8, 32), black)); ring.rotation.y = Math.PI / 2; ring.position.x = -0.10;      /* left flange: black, spoked */
+    cyl(0.034, 0.018, black, -0.10); cyl(0.088, 0.004, M(0x0b0d0f, 0.8, 0.1), -0.094);
+    for (let k = 0; k < 8; k++) { const a = k / 8 * Math.PI * 2, sp = box(0.012, 0.06, 0.016, black, -0.10, Math.cos(a) * 0.06, Math.sin(a) * 0.06); sp.rotation.x = a; } }
+  cyl(0.094, 0.008, steel, 0.058);                                                       /* right flange, bright */
+  cyl(0.105, 0.075, silver, 0.10); cyl(0.07, 0.03, silver, 0.15); cyl(0.04, 0.03, silver, 0.178);       /* the gear housing, stepping down to the drag */
+  cyl(0.036, 0.012, black, 0.2, 0, 0, 10);                                               /* star drag */
+  box(0.008, 0.11, 0.022, silver, 0.212, 0.045, 0); cyl(0.016, 0.07, black, 0.25, 0.095, 0);            /* crank and its black knob */
+  cyl(0.009, 0.22, steel, 0.0, 0.088, -0.075);                                           /* the bar the level wind rides on */
+  { const arm = box(0.03, 0.11, 0.012, black, -0.01, 0.135, -0.095); arm.rotation.x = -0.35; box(0.04, 0.012, 0.03, steel, -0.01, 0.185, -0.115); }
+  const cb = add(new THREE.Group()); cb.position.set(-0.005, -0.005, 0.105); cb.rotation.x = -0.75;   /* the control box, tilted up to the angler */
+  box(0.2, 0.12, 0.05, boxGrey, 0, 0, 0, cb);
+  { const lcd = new THREE.Mesh(new THREE.PlaneGeometry(0.085, 0.04), new THREE.MeshBasicMaterial({ map: lcdTex, fog: false })); lcd.position.set(0.02, 0.026, 0.0262); cb.add(lcd);
+    box(0.095, 0.05, 0.002, dark, 0.02, 0.026, 0.0245, cb); box(0.006, 0.05, 0.005, steel, -0.05, 0.02, 0.027, cb);
+    [0xd4232b, 0x15181b, 0x2a8fd6, 0xd4232b].forEach((c, i) => { const b = new THREE.Mesh(new THREE.SphereGeometry(0.0125, 14, 10), M(c, 0.35, 0.05)); b.scale.z = 0.7; b.position.set(-0.03 + i * 0.031, -0.026, 0.027); cb.add(b); }); }
+  cyl(0.05, 0.19, dark, 0.0, -0.085, 0.06);                                              /* the motor */
+  box(0.07, 0.06, 0.13, black, 0, -0.085, -0.01);                                        /* the foot, clamped to the rod */
   const up = new THREE.Vector3(0, 1, 0), side = new THREE.Vector3().crossVectors(ROD_DIR, up).normalize(), top = new THREE.Vector3().crossVectors(side, ROD_DIR).normalize();
   reel.position.copy(ROD_BASE).addScaledVector(ROD_DIR, ROD_LEN * 0.13).addScaledVector(top, 0.11);
   reel.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(side, top, ROD_DIR.clone().negate()));
+  { const dn = new THREE.Vector3(0, -1, 0).applyQuaternion(reel.quaternion.clone().invert()), p0 = new THREE.Vector3(0, -0.12, 0.09);            /* the power cord, down to the deck */
+    const pts = [p0, p0.clone().addScaledVector(dn, 0.22).add(new THREE.Vector3(-0.04, 0, 0.05)), p0.clone().addScaledVector(dn, 0.5).add(new THREE.Vector3(-0.16, 0, 0.02)), p0.clone().addScaledVector(dn, 0.62).add(new THREE.Vector3(-0.4, 0, 0))];
+    reel.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 20, 0.008, 6), new THREE.MeshStandardMaterial({ color: 0x101214, roughness: 0.7 }))); }
   const holder = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.34, 10), guideMat);
   holder.position.copy(ROD_BASE).addScaledVector(ROD_DIR, -0.1); holder.quaternion.setFromUnitVectors(up, ROD_DIR); boatG.add(holder);
 }
@@ -791,8 +811,10 @@ function updateCurtain(tt) { const p = curtGeo.attributes.position, q2 = surfGeo
   p.needsUpdate = true; q2.needsUpdate = true; }
 let VW = innerWidth, VH = innerHeight, insetTip = null, waterRow = 0;
 let zoom = 1, panZ = 0, panY = 0, follow = false;
+let deck = false, dkYaw = 0, dkPitch = 0;                 /* standing in the cockpit */
 let orbit = false, landedView = false, oyaw = 2.6, opitch = 0.42, orad = 14;       // look-around camera
 const orbitCam = new THREE.PerspectiveCamera(42, innerWidth / innerHeight, 0.1, 6000);
+const DECK_EYE = new THREE.Vector3(-0.75, 1.85, -2.3), DECK_YAW = Math.atan2(2.0, -3.0), DECK_PITCH = -0.16;
 const viewOff = () => (innerHeight > innerWidth ? -2.8 : 0);
 function applyView() {
   // held upright, a phone shows the full depth and a slice of the width (the stern and the line); drag sideways to see the rest
@@ -826,16 +848,18 @@ addEventListener('pointermove', e => {
   const dx = e.clientX - p.x, dy = e.clientY - p.y; p.x = e.clientX; p.y = e.clientY;
   const around = orbit || landedView;
   if (ptrs.size === 2) { const [a, b] = [...ptrs.values()]; if (pinch0 > 10) { const r = Math.hypot(a.x - b.x, a.y - b.y) / pinch0; if (around) { orad = clamp(orad / (1 + (r - 1) * 0.06), 5, 45); } else { follow = false; setZoom(zoom0 * r); } } return; }
+  if (deck && !around) { dkYaw = clamp(dkYaw + dx * 0.004, -1.5, 1.5); dkPitch = clamp(dkPitch + dy * 0.003, -0.5, 0.45); return; }
   if (around) { oyaw -= dx * 0.006; opitch = clamp(opitch + dy * 0.005, 0.05, 1.45); return; }
   if (zoom <= 1 && !(VH > VW)) return;
   if (Math.abs(dx) + Math.abs(dy) > 0) follow = false;
   const v = applyView(); panZ += dx * v.wvis / VW; panY -= dy * v.hvis / VH; applyView(); setViewLabel();
 });
-addEventListener('wheel', e => { if (orbit || landedView) { orad = clamp(orad * (e.deltaY < 0 ? 1 / 1.1 : 1.1), 5, 45); return; } follow = false; setZoom(zoom * (e.deltaY < 0 ? 1.12 : 1 / 1.12)); setViewLabel(); }, { passive: true });
-function setViewLabel() { $('b-view').textContent = orbit ? 'VIEW: LOOK AROUND' : follow ? 'VIEW: BAIT' : zoom > 1 ? 'VIEW: FREE' : 'VIEW: WHOLE'; }
-function toggleView() {                                      // whole picture -> follow the bait -> look around the boat -> whole picture
+addEventListener('wheel', e => { if (deck && !orbit && !landedView) return; if (orbit || landedView) { orad = clamp(orad * (e.deltaY < 0 ? 1 / 1.1 : 1.1), 5, 45); return; } follow = false; setZoom(zoom * (e.deltaY < 0 ? 1.12 : 1 / 1.12)); setViewLabel(); }, { passive: true });
+function setViewLabel() { $('b-view').textContent = orbit ? 'VIEW: LOOK AROUND' : deck ? 'VIEW: DECK' : follow ? 'VIEW: BAIT' : zoom > 1 ? 'VIEW: FREE' : 'VIEW: WHOLE'; }
+function toggleView() {                                      /* whole picture -> follow the bait -> on deck -> look around the boat -> whole picture */
   if (orbit) { orbit = false; follow = false; zoom = 1; panZ = 0; panY = 0; applyView(); }
-  else if (follow) { follow = false; zoom = 1; panZ = 0; panY = 0; applyView(); orbit = true; }
+  else if (deck) { deck = false; orbit = true; }
+  else if (follow) { follow = false; zoom = 1; panZ = 0; panY = 0; applyView(); deck = true; dkYaw = 0; dkPitch = 0; }
   else if (zoom > 1) { zoom = 1; panZ = 0; panY = 0; applyView(); }
   else { follow = true; zoom = TOUCH ? 3 : 2.6; }
   setViewLabel();
@@ -930,7 +954,8 @@ function render() {
   let endKnown = false;
   if (fighting) {
     const f = F.f, len = fishMetres(f.wgt) * FISH_K;
-    _m.set(RIG_X, -(F.y - SURF) * PX, RIG_Z - (F.x - TIPX) * PX);          // exactly where the flat game put him
+    _m.set(RIG_X, -(F.y - SURF) * PX, RIG_Z - (F.x - TIPX) * PX);          /* where the flat game put him */
+    { const ftPerM = FT / 0.0217, fy = -bottomAt(boat.wx - (_m.z + 5.4) * ftPerM) / ftPerM; _m.y = Math.max(_m.y, fy + 0.3 + 0.38 * len); }      /* never down in the bottom, whatever the ground does under the boat */
     // he always points the way he is actually moving: heading and nose angle come from his own motion
     const px = fishPos.x, py = fishPos.y, pz = fishPos.z;
     fishPos.lerp(_m, Math.min(1, 10 * lastDt));
@@ -956,6 +981,7 @@ function render() {
   put(reel.position); for (const gd of guides) put(gd.position); put(tipRoller.position);
   lp.setXYZ(li, rigPos.x, rigPos.y, rigPos.z); lp.needsUpdate = true;
 
+  setLcd(fighting ? Math.round(F.line) : fishing ? Math.round(rig.L) : 0);
   // the rig down there
   const rigUp = fishing && rig.rigT <= 0;
   rigG.visible = rigUp; strobe.intensity = 0;
@@ -1003,12 +1029,17 @@ function render() {
   const wasLanded = landedView; landedView = state === 'result' && !!result && result.landed;
   if (landedView && !wasLanded) { oyaw = 2.75; opitch = 1.02; orad = 9.5; }                  // a fish on the deck: look down into the cockpit
   if (!landedView && wasLanded && !orbit) { oyaw = 2.6; opitch = 0.42; orad = 14; }
-  const around = orbit || landedView;
+  const onDeck = deck && !orbit && !landedView, around = orbit || landedView || onDeck;
   $('surf').style.display = around ? 'none' : '';
   renderer.setScissorTest(false); renderer.setViewport(0, 0, VW, VH); renderer.clear(); waterMat.uniforms.uCutX.value = 1e9;
   if (around) {
     setAir(); floor.visible = false; snow3.visible = false; shade.visible = false; waterNear.visible = waterFar.visible = true;
-    orbitCam.position.set(0.3 + Math.sin(oyaw) * Math.cos(opitch) * orad, 1.0 + Math.sin(opitch) * orad, -1.8 + Math.cos(oyaw) * Math.cos(opitch) * orad); orbitCam.lookAt(0.3, 1.0, -1.8);
+    const fov = onDeck ? 60 : 42; if (orbitCam.fov !== fov) { orbitCam.fov = fov; orbitCam.updateProjectionMatrix(); }
+    if (onDeck) { /* eye height in the cockpit, looking aft at the rod and the water behind her; the horizon stays level */
+      const yw = DECK_YAW - dkYaw, pt = DECK_PITCH - dkPitch; _v.set(DECK_EYE.x + Math.sin(yw) * Math.cos(pt), DECK_EYE.y + Math.sin(pt), DECK_EYE.z + Math.cos(yw) * Math.cos(pt));
+      boatG.localToWorld(orbitCam.position.copy(DECK_EYE)); orbitCam.up.set(0, 1, 0); orbitCam.lookAt(boatG.localToWorld(_v));
+    } else {
+    orbitCam.position.set(0.3 + Math.sin(oyaw) * Math.cos(opitch) * orad, 1.0 + Math.sin(opitch) * orad, -1.8 + Math.cos(oyaw) * Math.cos(opitch) * orad); orbitCam.lookAt(0.3, 1.0, -1.8); }
     renderer.setViewport(0, 0, VW, VH); renderer.setScissor(0, 0, VW, VH);
     waterNear.position.set(Math.round(orbitCam.position.x / 4) * 4, 0, Math.round(orbitCam.position.z / 4) * 4); waterFar.position.set(waterNear.position.x, -0.05, waterNear.position.z);
     renderer.render(scene, orbitCam);
