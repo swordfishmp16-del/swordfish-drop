@@ -486,7 +486,7 @@ const skyMat = new THREE.ShaderMaterial({
     void main() { vec3 d = normalize(vD); vec3 c = skyCol(d, 1.);
       c += vec3(1., .96, .88) * smoothstep(.9994, .9998, dot(d, uSun)) * 12.;
       if (d.y < 0.) c = mix(skyBase(normalize(vec3(d.x, .02, d.z))), vec3(.01, .05, .12), 1. - smoothstep(-.06, 0., d.y));
-      if (uUnder > 1.5) c = mix(vec3(.030, .30, .50), vec3(.003, .018, .05), smoothstep(-.015, -.34, d.y)) + vec3(.10, .22, .22) * smoothstep(-.06, -.0, d.y);
+      if (uUnder > 1.5) c = mix(vec3(.012, .20, .62), vec3(.004, .045, .22), smoothstep(-.015, -.30, d.y)) + vec3(.05, .20, .30) * smoothstep(-.05, -.0, d.y);
       else if (uUnder > .5) c = uDeep * (d.y > 0. ? 1. + .7 * d.y : 1. + .8 * d.y);          // open water in every direction, a little lighter overhead
       gl_FragColor = vec4(c, 1.);
       #include <tonemapping_fragment>
@@ -595,8 +595,8 @@ const shadeMat = new THREE.ShaderMaterial({
   transparent: true, depthTest: false, depthWrite: false, uniforms: { uLamp: { value: new THREE.Vector2(0, -8) }, uBlink: { value: 0 }, uR: { value: 2 } },
   vertexShader: 'varying vec3 vP; void main() { vec4 wp = modelMatrix * vec4(position, 1.); vP = wp.xyz; gl_Position = projectionMatrix * viewMatrix * wp; }',
   fragmentShader: 'uniform vec2 uLamp; uniform float uBlink, uR; varying vec3 vP;' +
-    ' void main() { float dark = (1. - smoothstep(-7.5, -0.6, vP.y)) * .86; vec2 d = vP.zy - uLamp; float glow = uBlink * exp(-dot(d, d) / (uR * uR));' +
-    ' gl_FragColor = vec4(vec3(.0, .008, .022) + vec3(.10, .32, .26) * glow * .5, dark * (1. - .93 * glow)); }',
+    ' void main() { float dark = (1. - smoothstep(-8.0, -1.5, vP.y)) * .80; vec2 d = vP.zy - uLamp; float glow = uBlink * exp(-dot(d, d) / (uR * uR));' +
+    ' gl_FragColor = vec4(vec3(.001, .022, .11) + vec3(.10, .32, .26) * glow * .5, dark * (1. - .93 * glow)); }',
 });
 const shade = new THREE.Mesh(new THREE.PlaneGeometry(120, 16), shadeMat); shade.rotation.y = Math.PI / 2; shade.position.set(2.3, -8, -3.4); shade.renderOrder = 50; shade.visible = false; shade.frustumCulled = false; scene.add(shade);
 // drifting marine snow around the deep camera
@@ -854,8 +854,8 @@ let fishYawS = Math.PI, fishPitchS = 0;
 const FISH_K = 0.62;                                        // fish are drawn a little under life size so they sit right in the squeezed water
 function setAir() { skyMat.uniforms.uUnder.value = 0; scene.fog.color.set(0xb9d2e8); scene.fog.density = 0.0011; hemi.intensity = 1.25; hemi.color.set(0xbfd8ff); hemi.groundColor.set(0x12324a); sun.intensity = 3.2; sun.color.set(0xfff2dc); }
 function setCut() {                                         // the cut through the sea: bright under the surface, dark toward the bottom
-  skyMat.uniforms.uUnder.value = 2; scene.fog.color.setRGB(0.012, 0.085, 0.19); scene.fog.density = 0.016;
-  hemi.intensity = 1.7; hemi.color.set(0x9fd8ff); hemi.groundColor.set(0x0a3350); sun.intensity = 1.5; sun.color.set(0xbfe8ff);
+  skyMat.uniforms.uUnder.value = 2; scene.fog.color.setRGB(0.006, 0.075, 0.30); scene.fog.density = 0.016;
+  hemi.intensity = 1.7; hemi.color.set(0x8fc4ff); hemi.groundColor.set(0x0a2f66); sun.intensity = 1.5; sun.color.set(0xbfe8ff);
 }
 function render() {
   const tt = t;
